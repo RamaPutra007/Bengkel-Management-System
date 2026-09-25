@@ -11,15 +11,11 @@ class DashboardController extends Controller
     {
         $startOfMonth = \Carbon\Carbon::now()->startOfMonth();
 
-        $stats = [
-            'total_customers' => \App\Models\Customer::count(),
-            'total_vehicles' => \App\Models\Vehicle::count(),
+        $dashboardService = new \App\Services\DashboardService();
+        $stats = array_merge([
             'service_order_aktif' => \App\Models\ServiceOrder::whereIn('status', ['pending', 'in_progress'])->count(),
             'service_order_selesai' => \App\Models\ServiceOrder::where('status', 'completed')->where('created_at', '>=', $startOfMonth)->count(),
-            'total_mechanics' => \App\Models\Mechanic::count(),
-            'total_spare_parts' => \App\Models\Sparepart::count(),
-            'stok_menipis' => \App\Models\Sparepart::whereColumn('stock', '<=', 'reorder_level')->count(),
-        ];
+        ], $dashboardService->getOverviewStats());
         $pending_bookings = \App\Models\Booking::with(['customer', 'vehicle'])->where('status', 'Menunggu')->get();
         
         return view('admin.dashboard', compact('stats', 'pending_bookings'));

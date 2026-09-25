@@ -24,7 +24,8 @@ class DashboardController extends Controller
             $revenueGrowth = 100;
         }
 
-        $stats = [
+        $dashboardService = new \App\Services\DashboardService();
+        $stats = array_merge([
             'revenue_today' => $revenueToday,
             'revenue_growth' => round($revenueGrowth, 1),
             'revenue_week' => \App\Models\Invoice::where('payment_status', 'paid')->where('paid_at', '>=', $startOfWeek)->sum('grand_total'),
@@ -32,11 +33,7 @@ class DashboardController extends Controller
             'total_service_orders' => \App\Models\ServiceOrder::where('created_at', '>=', $startOfMonth)->count(),
             'service_completed' => \App\Models\ServiceOrder::where('status', 'completed')->where('created_at', '>=', $startOfMonth)->count(),
             'service_in_progress' => \App\Models\ServiceOrder::where('status', 'in_progress')->count(),
-            'total_customers' => \App\Models\Customer::count(),
-            'total_vehicles' => \App\Models\Vehicle::count(),
-            'total_spare_parts' => \App\Models\Sparepart::count(),
-            'low_stock' => \App\Models\Sparepart::whereColumn('stock', '<=', 'reorder_level')->count(),
-        ];
+        ], $dashboardService->getOverviewStats());
         $pending_bookings = \App\Models\Booking::with(['customer', 'vehicle'])->where('status', 'Menunggu')->get();
         
         return view('owner.dashboard', compact('stats', 'pending_bookings'));
