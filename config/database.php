@@ -4,11 +4,12 @@ use Illuminate\Support\Str;
 use Pdo\Mysql;
 
 $databaseUrl = env('DB_URL', env('DATABASE_URL', env('POSTGRES_URL', env('STORAGE_URL'))));
-$neonEndpoint = null;
-if (is_string($databaseUrl) && str_contains($databaseUrl, '.neon.tech')) {
+if (is_string($databaseUrl) && str_contains($databaseUrl, '.neon.tech') && !str_contains($databaseUrl, 'options=endpoint')) {
     $parsedHost = parse_url($databaseUrl, PHP_URL_HOST);
     if ($parsedHost) {
-        $neonEndpoint = 'endpoint=' . explode('.', $parsedHost)[0];
+        $endpointId = explode('.', $parsedHost)[0];
+        $separator = str_contains($databaseUrl, '?') ? '&' : '?';
+        $databaseUrl .= $separator . 'options=endpoint%3D' . $endpointId;
     }
 }
 
@@ -95,7 +96,7 @@ return [
 
         'pgsql' => [
             'driver' => 'pgsql',
-            'url' => env('DB_URL', env('DATABASE_URL', env('POSTGRES_URL', env('STORAGE_URL')))),
+            'url' => $databaseUrl,
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT') == '3306' ? '5432' : env('DB_PORT', '5432'),
             'database' => env('DB_DATABASE', 'laravel'),
@@ -106,7 +107,6 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
-            'options' => $neonEndpoint,
         ],
 
         'sqlsrv' => [
