@@ -1,5 +1,7 @@
 {
     "version": 2,
+    "buildCommand": "npm run build && rm -f public/index.php",
+    "outputDirectory": "public",
     "functions": {
         "api/index.php": {
             "runtime": "vercel-php@0.9.0"
@@ -7,8 +9,7 @@
     },
     "routes": [
         {
-            "src": "/build/(.*)",
-            "dest": "/public/build/$1"
+            "handle": "filesystem"
         },
         {
             "src": "/(.*)",
