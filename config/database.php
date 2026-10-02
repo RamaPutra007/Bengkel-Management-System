@@ -4,12 +4,13 @@ use Illuminate\Support\Str;
 use Pdo\Mysql;
 
 $databaseUrl = env('DB_URL', env('DATABASE_URL', env('POSTGRES_URL', env('STORAGE_URL'))));
-if (is_string($databaseUrl) && str_contains($databaseUrl, '.neon.tech') && !str_contains($databaseUrl, 'options=endpoint')) {
+$pgsqlPort = env('DB_PORT') == '3306' ? '5432' : env('DB_PORT', '5432');
+
+if (is_string($databaseUrl) && str_contains($databaseUrl, '.neon.tech')) {
     $parsedHost = parse_url($databaseUrl, PHP_URL_HOST);
     if ($parsedHost) {
         $endpointId = explode('.', $parsedHost)[0];
-        $separator = str_contains($databaseUrl, '?') ? '&' : '?';
-        $databaseUrl .= $separator . 'options=endpoint%3D' . $endpointId;
+        $pgsqlPort .= ';options=endpoint=' . $endpointId;
     }
 }
 
@@ -98,7 +99,7 @@ return [
             'driver' => 'pgsql',
             'url' => $databaseUrl,
             'host' => env('DB_HOST', '127.0.0.1'),
-            'port' => env('DB_PORT') == '3306' ? '5432' : env('DB_PORT', '5432'),
+            'port' => $pgsqlPort,
             'database' => env('DB_DATABASE', 'laravel'),
             'username' => env('DB_USERNAME', 'root'),
             'password' => env('DB_PASSWORD', ''),
