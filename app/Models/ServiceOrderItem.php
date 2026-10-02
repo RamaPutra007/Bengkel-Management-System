@@ -10,7 +10,7 @@ use App\Models\Sparepart;
 
 class ServiceOrderItem extends Model
 {
-    protected $guarded = [];
+    protected $fillable = ['service_order_id', 'type', 'service_id', 'sparepart_id', 'item_name', 'quantity', 'price', 'subtotal'];
 
     public function serviceOrder()
     {

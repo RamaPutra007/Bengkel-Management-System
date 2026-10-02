@@ -4,7 +4,6 @@
             <h2 class="font-semibold text-xl text-slate-800 leading-tight">
                 {{ __('Template WhatsApp') }}
             </h2>
-            <p class="text-sm text-slate-500">Kelola template pesan WhatsApp untuk berbagai keperluan pelanggan bengkel</p>
         </div>
     </x-slot>
 

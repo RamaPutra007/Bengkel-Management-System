@@ -9,5 +9,5 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Mechanic extends Model
 {
     use SoftDeletes;
-    protected $guarded = [];
+    protected $fillable = ['name', 'phone', 'specialization', 'status'];
 }

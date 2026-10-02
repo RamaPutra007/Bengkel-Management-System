@@ -12,7 +12,7 @@ use App\Models\Mechanic;
 class ServiceOrder extends Model
 {
     use SoftDeletes;
-    protected $guarded = [];
+    protected $fillable = ['order_number', 'customer_id', 'vehicle_id', 'mechanic_id', 'status', 'total_price', 'notes'];
 
     public function inspection()
     {

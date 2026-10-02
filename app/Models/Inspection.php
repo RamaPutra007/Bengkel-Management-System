@@ -8,7 +8,7 @@ use App\Models\ServiceOrder;
 
 class Inspection extends Model
 {
-    protected $guarded = [];
+    protected $fillable = ['service_order_id', 'customer_complaint', 'mechanic_notes', 'recommendations'];
 
     public function serviceOrder()
     {

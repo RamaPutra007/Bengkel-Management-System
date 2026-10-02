@@ -192,10 +192,13 @@
                         return;
                     }
 
-                    let fetchUrl = "{{ route('admin.api.customer.vehicles', ['customer' => 'ID_PLACEHOLDER']) }}";
-                    fetchUrl = fetchUrl.replace('ID_PLACEHOLDER', customerId);
+                    const fetchUrl = `/admin/customer-vehicles/${customerId}`;
 
-                    fetch(fetchUrl)
+                    fetch(fetchUrl, {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
                         .then(response => {
                             if (!response.ok) throw new Error('Network response was not ok');
                             return response.json();

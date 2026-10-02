@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Vehicle extends Model
 {
     use SoftDeletes;
-    protected $guarded = [];
+    protected $fillable = ['customer_id', 'license_plate', 'brand', 'model', 'year', 'color', 'chassis_number', 'engine_number'];
 
     public function customer()
     {

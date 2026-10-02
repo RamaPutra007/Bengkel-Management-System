@@ -9,7 +9,7 @@ use App\Models\User;
 
 class InventoryTransaction extends Model
 {
-    protected $guarded = [];
+    protected $fillable = ['sparepart_id', 'type', 'quantity', 'notes', 'user_id'];
 
     public function sparepart()
     {

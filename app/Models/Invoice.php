@@ -10,7 +10,7 @@ use App\Models\ServiceOrder;
 class Invoice extends Model
 {
     use SoftDeletes;
-    protected $guarded = [];
+    protected $fillable = ['invoice_number', 'service_order_id', 'subtotal', 'tax', 'discount', 'grand_total', 'payment_method', 'payment_status', 'paid_at', 'notes'];
 
     protected $casts = [
         'paid_at' => 'datetime',

@@ -139,17 +139,9 @@
             </a>
             
             <div class="px-4 py-3 mt-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Transaksi</div>
-            <a href="{{ route('kasir.invoice.index') }}" class="flex items-center gap-3 px-4 py-2.5 rounded-xl {{ request()->routeIs('kasir.invoice.*') ? 'bg-orange-50 text-[#FF6B00] font-medium' : 'hover:bg-slate-50 hover:text-slate-900 text-slate-500' }} transition-all duration-200">
-                <div class="w-1.5 h-1.5 rounded-full {{ request()->routeIs('kasir.invoice.*') ? 'bg-[#FF6B00]' : 'bg-slate-300' }}"></div>
-                <span>Invoice</span>
-            </a>
-            <a href="{{ route('kasir.payment.index') }}" class="flex items-center gap-3 px-4 py-2.5 rounded-xl {{ request()->routeIs('kasir.payment.*') ? 'bg-orange-50 text-[#FF6B00] font-medium' : 'hover:bg-slate-50 hover:text-slate-900 text-slate-500' }} transition-all duration-200">
-                <div class="w-1.5 h-1.5 rounded-full {{ request()->routeIs('kasir.payment.*') ? 'bg-[#FF6B00]' : 'bg-slate-300' }}"></div>
-                <span>Pembayaran</span>
-            </a>
-            <a href="{{ route('kasir.transaction-history.index') }}" class="flex items-center gap-3 px-4 py-2.5 rounded-xl {{ request()->routeIs('kasir.transaction-history.*') ? 'bg-orange-50 text-[#FF6B00] font-medium' : 'hover:bg-slate-50 hover:text-slate-900 text-slate-500' }} transition-all duration-200">
-                <div class="w-1.5 h-1.5 rounded-full {{ request()->routeIs('kasir.transaction-history.*') ? 'bg-[#FF6B00]' : 'bg-slate-300' }}"></div>
-                <span>Riwayat Transaksi</span>
+            <a href="{{ route('admin.invoice.index') }}" class="flex items-center gap-3 px-4 py-2.5 rounded-xl {{ request()->routeIs('admin.invoice.*') ? 'bg-orange-50 text-[#FF6B00] font-medium' : 'hover:bg-slate-50 hover:text-slate-900 text-slate-500' }} transition-all duration-200">
+                <div class="w-1.5 h-1.5 rounded-full {{ request()->routeIs('admin.invoice.*') ? 'bg-[#FF6B00]' : 'bg-slate-300' }}"></div>
+                <span>Kelola Invoice & Pembayaran</span>
             </a>
         @endrole
     </nav>

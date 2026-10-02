@@ -57,7 +57,8 @@
                                         <span class="text-xs text-slate-500">Kirim kode QRIS ke WhatsApp pelanggan. Status akan otomatis berubah lunas ketika pelanggan selesai membayar.</span>
                                     </div>
                                 </label>
-                            </div>
+
+
                         </div>
 
                         <div id="qris_preview_container" class="hidden mt-4 bg-slate-50 p-6 rounded-xl border border-slate-200 text-center">
@@ -123,7 +124,6 @@
                     lblQris.classList.add('border-[#FF6B00]', 'bg-orange-50');
                     lblQris.classList.remove('border-slate-200');
                     qrisContainer.classList.remove('hidden');
-                    submitBtn.innerHTML = '<svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg> Kirim QRIS (via WA)';
                 }
             }
 

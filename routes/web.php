@@ -40,6 +40,7 @@ Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->grou
     // Admin Placeholder Routes
     Route::post('booking/{id}/accept', [\App\Http\Controllers\Admin\DashboardController::class, 'acceptBooking'])->name('booking.accept');
     Route::resource('customer', \App\Http\Controllers\Admin\CustomerController::class);
+    Route::get('/customer-vehicles/{customer}', [\App\Http\Controllers\Admin\ServiceOrderController::class, 'getCustomerVehicles'])->name('api.customer.vehicles');
     Route::resource('vehicle', \App\Http\Controllers\Admin\VehicleController::class);
     Route::resource('service-order', \App\Http\Controllers\Admin\ServiceOrderController::class);
     Route::resource('inspection', \App\Http\Controllers\Admin\InspectionController::class);
@@ -47,9 +48,6 @@ Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->grou
     Route::resource('mechanic', \App\Http\Controllers\Admin\MechanicController::class);
     Route::resource('sparepart', \App\Http\Controllers\Admin\SparepartController::class);
     Route::resource('inventory-transaction', \App\Http\Controllers\Admin\InventoryTransactionController::class)->only(['index', 'create', 'store']);
-    Route::post('invoice/{invoice}/send-qris', [\App\Http\Controllers\Admin\InvoiceController::class, 'sendQris'])->name('invoice.send-qris');
-    Route::get('invoice/{invoice}/print', [\App\Http\Controllers\Admin\InvoiceController::class, 'print'])->name('invoice.print');
-    Route::resource('invoice', \App\Http\Controllers\Admin\InvoiceController::class);
     Route::get('/laporan', [\App\Http\Controllers\Admin\ReportController::class, 'index'])->name('laporan.index');
     Route::get('/whatsapp', [\App\Http\Controllers\Admin\WhatsappController::class, 'index'])->name('whatsapp.index');
     Route::post('/whatsapp/disconnect', [\App\Http\Controllers\Admin\WhatsappController::class, 'disconnect'])->name('whatsapp.disconnect');
@@ -59,11 +57,17 @@ Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->grou
     Route::put('/whatsapp/template/{id}', [\App\Http\Controllers\Admin\WhatsappController::class, 'updateTemplate'])->name('whatsapp.updateTemplate');
 });
 
+Route::middleware(['auth', 'role:ADMIN|KASIR'])->prefix('admin')->name('admin.')->group(function () {
+    Route::post('invoice/{invoice}/send-qris', [\App\Http\Controllers\Admin\InvoiceController::class, 'sendQris'])->name('invoice.send-qris');
+    Route::get('invoice/{invoice}/print', [\App\Http\Controllers\Admin\InvoiceController::class, 'print'])->name('invoice.print');
+    Route::resource('invoice', \App\Http\Controllers\Admin\InvoiceController::class);
+});
+
 Route::middleware(['auth', 'role:KASIR'])->prefix('kasir')->name('kasir.')->group(function () {
     Route::get('/dashboard', [\App\Http\Controllers\Kasir\DashboardController::class, 'index'])->name('dashboard');
     
+    
     // Kasir Placeholder Routes
-    Route::get('/invoice', function() { return view('placeholder', ['title' => 'Invoice']); })->name('invoice.index');
     Route::get('/payment', function() { return view('placeholder', ['title' => 'Pembayaran']); })->name('payment.index');
     Route::get('/transaction-history', function() { return view('placeholder', ['title' => 'Riwayat Transaksi']); })->name('transaction-history.index');
 });

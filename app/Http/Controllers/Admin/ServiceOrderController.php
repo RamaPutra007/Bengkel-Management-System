@@ -68,16 +68,17 @@ class ServiceOrderController extends Controller
             $totalPrice = 0;
 
             foreach ($data['items'] as $itemData) {
-                $subtotal = $itemData['quantity'] * $itemData['price'];
-                $totalPrice += $subtotal;
-
+                $actualPrice = 0;
                 $itemName = '';
+                
                 if ($itemData['type'] === 'service') {
                     $service = Service::find($itemData['item_id']);
                     $itemName = $service ? $service->name : 'Unknown Service';
+                    $actualPrice = $service ? $service->price : 0;
                 } else {
                     $sparepart = Sparepart::find($itemData['item_id']);
                     $itemName = $sparepart ? $sparepart->name : 'Unknown Sparepart';
+                    $actualPrice = $sparepart ? $sparepart->price : 0;
                     
                     if ($sparepart) {
                         $sparepart->decrement('stock', $itemData['quantity']);
@@ -92,6 +93,9 @@ class ServiceOrderController extends Controller
                     }
                 }
 
+                $subtotal = $itemData['quantity'] * $actualPrice;
+                $totalPrice += $subtotal;
+
                 ServiceOrderItem::create([
                     'service_order_id' => $serviceOrder->id,
                     'type' => $itemData['type'],
@@ -99,7 +103,7 @@ class ServiceOrderController extends Controller
                     'sparepart_id' => $itemData['type'] === 'sparepart' ? $itemData['item_id'] : null,
                     'item_name' => $itemName,
                     'quantity' => $itemData['quantity'],
-                    'price' => $itemData['price'],
+                    'price' => $actualPrice,
                     'subtotal' => $subtotal,
                 ]);
             }
@@ -205,16 +209,17 @@ class ServiceOrderController extends Controller
             // 4. Insert new items and deduct stock (only if not cancelled)
             $totalPrice = 0;
             foreach ($data['items'] as $itemData) {
-                $subtotal = $itemData['quantity'] * $itemData['price'];
-                $totalPrice += $subtotal;
-
+                $actualPrice = 0;
                 $itemName = '';
+                
                 if ($itemData['type'] === 'service') {
                     $service = Service::find($itemData['item_id']);
                     $itemName = $service ? $service->name : 'Unknown Service';
+                    $actualPrice = $service ? $service->price : 0;
                 } else {
                     $sparepart = Sparepart::find($itemData['item_id']);
                     $itemName = $sparepart ? $sparepart->name : 'Unknown Sparepart';
+                    $actualPrice = $sparepart ? $sparepart->price : 0;
                     
                     if ($sparepart && $data['status'] !== 'cancelled') {
                         $sparepart->decrement('stock', $itemData['quantity']);
@@ -229,6 +234,9 @@ class ServiceOrderController extends Controller
                     }
                 }
 
+                $subtotal = $itemData['quantity'] * $actualPrice;
+                $totalPrice += $subtotal;
+
                 ServiceOrderItem::create([
                     'service_order_id' => $serviceOrder->id,
                     'type' => $itemData['type'],
@@ -236,7 +244,7 @@ class ServiceOrderController extends Controller
                     'sparepart_id' => $itemData['type'] === 'sparepart' ? $itemData['item_id'] : null,
                     'item_name' => $itemName,
                     'quantity' => $itemData['quantity'],
-                    'price' => $itemData['price'],
+                    'price' => $actualPrice,
                     'subtotal' => $subtotal,
                 ]);
             }

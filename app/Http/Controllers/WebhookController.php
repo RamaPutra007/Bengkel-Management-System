@@ -13,33 +13,37 @@ class WebhookController extends Controller
     {
         Log::info('QRIS Webhook Received:', $request->all());
 
-        // Biasanya webhook memiliki parameter seperti amount, status, dan invoice identifier
-        // Di sini saya berasumsi BuatQRIS atau Gateway lain mengirim: 
-        // invoice_id (atau transaction_id/reference), status = paid, etc.
+        // 1. Verifikasi Signature (HMAC) dari Payment Gateway
+        $secret = env('WEBHOOK_SECRET');
         
-        // Simulasikan payload:
-        // { "invoice_number": "INV-...", "status": "paid" } ATAU { "amount": 150000, "status": "PAID" }
-        
+        // Untuk simulasi dari UI web (tidak ada header signature), kita izinkan jika secret belum diset di .env
+        // Namun di production, blok ini wajib aktif.
+        if ($secret) {
+            $signature = $request->header('X-Signature');
+            $expectedSignature = hash_hmac('sha256', $request->getContent(), $secret);
+
+            if (!hash_equals((string) $expectedSignature, (string) $signature)) {
+                Log::warning('QRIS Webhook: Invalid Signature.', ['ip' => $request->ip()]);
+                return response()->json(['message' => 'Invalid signature'], 403);
+            }
+        } else {
+            Log::warning('QRIS Webhook: WEBHOOK_SECRET tidak diset di .env. Endpoint ini tidak aman!');
+        }
+
         $invoiceNumber = $request->input('invoice_number');
-        // Jika gateway tidak support meta-data invoice_number, kita gunakan total amount
-        $amount = $request->input('amount') ?? $request->input('gross_amount');
-        
         $status = strtolower($request->input('status') ?? 'paid');
+
+        if (!$invoiceNumber) {
+            if ($request->wantsJson() || $request->isJson() || !$request->header('referer')) {
+                return response()->json(['message' => 'invoice_number is required'], 400);
+            }
+            return redirect()->back()->with('error', 'Parameter invoice_number diperlukan.');
+        }
 
         if ($status === 'paid' || $status === 'settlement' || $status === 'success') {
             
-            // Cari invoice
-            $invoice = null;
-            if ($invoiceNumber) {
-                $invoice = Invoice::where('invoice_number', $invoiceNumber)->first();
-            } elseif ($amount) {
-                // Warning: ini rawan konflik jika ada beberapa invoice dengan nominal sama di hari yang sama
-                // Tapi ini fallback sederhana
-                $invoice = Invoice::where('payment_status', 'unpaid')
-                                  ->where('grand_total', $amount)
-                                  ->latest()
-                                  ->first();
-            }
+            // 2. Cari invoice HANYA berdasarkan invoice_number yang spesifik, jangan gunakan nominal amount (rawan konflik)
+            $invoice = Invoice::where('invoice_number', $invoiceNumber)->first();
 
             if ($invoice && $invoice->payment_status !== 'paid') {
                 $invoice->update([

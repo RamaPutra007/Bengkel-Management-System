@@ -8,9 +8,8 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 
 // API Khusus untuk Admin yang diakses dari halaman web/ajax
-Route::middleware(['auth:sanctum', 'role:ADMIN'])->prefix('admin')->group(function () {
-    Route::get('/customer-vehicles/{customer}', [\App\Http\Controllers\Admin\ServiceOrderController::class, 'getCustomerVehicles'])->name('admin.api.customer.vehicles');
-});
+// (Sudah dipindah ke routes/web.php untuk menghindari masalah auth:sanctum)
+
 
 // API Publik tanpa middleware (Webhook)
 Route::post('webhook/qris', [\App\Http\Controllers\WebhookController::class, 'handleQris']);

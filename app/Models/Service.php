@@ -9,5 +9,5 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Service extends Model
 {
     use SoftDeletes;
-    protected $guarded = [];
+    protected $fillable = ['name', 'description', 'price', 'estimated_time'];
 }

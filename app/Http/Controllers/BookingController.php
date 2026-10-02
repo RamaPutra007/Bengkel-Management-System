@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Customer;
 use App\Models\Vehicle;
 use App\Models\Booking;
+use Illuminate\Support\Facades\DB;
 
 class BookingController extends Controller
 {
@@ -22,31 +23,41 @@ class BookingController extends Controller
             'complaints' => 'required|string',
         ]);
 
-        // Find or create customer
-        $customer = Customer::firstOrCreate(
-            ['phone' => $validated['phone']],
-            ['name' => $validated['name']]
-        );
+        try {
+            DB::beginTransaction();
 
-        // Find or create vehicle
-        $vehicle = Vehicle::firstOrCreate(
-            ['license_plate' => strtoupper($validated['license_plate'])],
-            [
+            // Find or create customer
+            $customer = Customer::firstOrCreate(
+                ['phone' => $validated['phone']],
+                ['name' => $validated['name']]
+            );
+
+            // Find or create vehicle
+            $vehicle = Vehicle::firstOrCreate(
+                ['license_plate' => strtoupper($validated['license_plate'])],
+                [
+                    'customer_id' => $customer->id,
+                    'brand' => $validated['brand'],
+                    'model' => $validated['model']
+                ]
+            );
+
+            // Create booking
+            Booking::create([
                 'customer_id' => $customer->id,
-                'brand' => $validated['brand'],
-                'model' => $validated['model']
-            ]
-        );
+                'vehicle_id' => $vehicle->id,
+                'booking_date' => $validated['booking_date'],
+                'booking_time' => $validated['booking_time'],
+                'complaints' => $validated['complaints'],
+                'status' => 'Menunggu'
+            ]);
 
-        // Create booking
-        Booking::create([
-            'customer_id' => $customer->id,
-            'vehicle_id' => $vehicle->id,
-            'booking_date' => $validated['booking_date'],
-            'booking_time' => $validated['booking_time'],
-            'complaints' => $validated['complaints'],
-            'status' => 'Menunggu'
-        ]);
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Illuminate\Support\Facades\Log::error('Booking Transaction Error: ' . $e->getMessage());
+            return back()->with('error', 'Terjadi kesalahan pada sistem saat memproses booking Anda. Silakan coba beberapa saat lagi.')->withInput();
+        }
 
         // Kirim Notifikasi Internal ke Admin (menggunakan nomor bot/admin)
         try {
