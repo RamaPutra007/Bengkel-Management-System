@@ -1,12 +1,18 @@
 {
     "version": 2,
-    "buildCommand": "npm run build && rm -f public/index.php",
-    "outputDirectory": "public",
-    "functions": {
-        "api/index.php": {
-            "runtime": "vercel-php@0.9.0"
+    "builds": [
+        {
+            "src": "package.json",
+            "use": "@vercel/static-build",
+            "config": {
+                "distDir": "public"
+            }
+        },
+        {
+            "src": "api/index.php",
+            "use": "vercel-php@0.9.0"
         }
-    },
+    ],
     "routes": [
         {
             "handle": "filesystem"

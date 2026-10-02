@@ -4,6 +4,7 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
+        "vercel-build": "vite build && rm -f public/index.php",
         "dev": "vite"
     },
     "devDependencies": {
