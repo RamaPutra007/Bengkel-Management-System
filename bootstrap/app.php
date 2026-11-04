@@ -22,6 +22,8 @@ $app = Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware->validateCsrfTokens(except: [
             'webhook/qris',
+            'api/webhook/*',
+            'webhook/*',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -11,6 +11,11 @@ Route::get('/', function () {
 
 Route::post('/booking', [BookingController::class, 'store'])->name('booking.store');
 
+// Public KiPay Checkout & Protected QR routes
+Route::get('/checkout/{invoice}', [\App\Http\Controllers\CheckoutController::class, 'show'])->name('checkout.show');
+Route::get('/checkout/{invoice}/status', [\App\Http\Controllers\CheckoutController::class, 'checkStatus'])->name('checkout.status');
+Route::get('/api/checkout/qr/{trx_id}', [\App\Http\Controllers\CheckoutController::class, 'getQrImage'])->name('checkout.qr');
+
 Route::get('/dashboard', function () {
     $user = auth()->user();
     if ($user->hasRole('OWNER')) {
@@ -55,10 +60,18 @@ Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->grou
     Route::post('/whatsapp/config', [\App\Http\Controllers\Admin\WhatsappController::class, 'updateConfig'])->name('whatsapp.updateConfig');
     Route::get('/whatsapp/template', [\App\Http\Controllers\Admin\WhatsappController::class, 'template'])->name('whatsapp.template');
     Route::put('/whatsapp/template/{id}', [\App\Http\Controllers\Admin\WhatsappController::class, 'updateTemplate'])->name('whatsapp.updateTemplate');
+
+    // KiPay Payment Gateway Routes
+    Route::get('/kipay/config', [\App\Http\Controllers\Admin\KiPayConfigController::class, 'index'])->name('kipay.index');
+    Route::post('/kipay/config', [\App\Http\Controllers\Admin\KiPayConfigController::class, 'update'])->name('kipay.update');
+    Route::post('/kipay/test-connection', [\App\Http\Controllers\Admin\KiPayConfigController::class, 'testConnection'])->name('kipay.test-connection');
 });
 
 Route::middleware(['auth', 'role:ADMIN|KASIR'])->prefix('admin')->name('admin.')->group(function () {
     Route::post('invoice/{invoice}/send-qris', [\App\Http\Controllers\Admin\InvoiceController::class, 'sendQris'])->name('invoice.send-qris');
+    Route::get('invoice/{invoice}/check-kipay', [\App\Http\Controllers\Admin\InvoiceController::class, 'checkKiPayStatus'])->name('invoice.check-kipay');
+    Route::post('invoice/{invoice}/simulate-kipay', [\App\Http\Controllers\Admin\InvoiceController::class, 'simulateKiPayPayment'])->name('invoice.simulate-kipay');
+    Route::get('invoice/{invoice}/kipay-qr', [\App\Http\Controllers\Admin\InvoiceController::class, 'kipayQr'])->name('invoice.kipay-qr');
     Route::get('invoice/{invoice}/print', [\App\Http\Controllers\Admin\InvoiceController::class, 'print'])->name('invoice.print');
     Route::resource('invoice', \App\Http\Controllers\Admin\InvoiceController::class);
 });

@@ -12,4 +12,5 @@ Route::get('/user', function (Request $request) {
 
 
 // API Publik tanpa middleware (Webhook)
+Route::post('webhook/kipay', [\App\Http\Controllers\WebhookController::class, 'handleKiPay']);
 Route::post('webhook/qris', [\App\Http\Controllers\WebhookController::class, 'handleQris']);

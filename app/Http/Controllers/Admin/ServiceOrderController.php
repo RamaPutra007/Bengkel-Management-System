@@ -45,15 +45,15 @@ class ServiceOrderController extends Controller
     public function store(StoreServiceOrderRequest $request)
     {
         try {
-            DB::beginTransaction();
-
             $data = $request->validated();
-            
+
             // Generate Order Number: SO-YYYYMMDD-XXXX
             $datePrefix = date('Ymd');
             $lastOrder = ServiceOrder::where('order_number', 'like', "SO-{$datePrefix}-%")->orderBy('id', 'desc')->first();
             $sequence = $lastOrder ? (int)substr($lastOrder->order_number, -4) + 1 : 1;
             $orderNumber = "SO-{$datePrefix}-" . str_pad($sequence, 4, '0', STR_PAD_LEFT);
+
+            DB::beginTransaction();
 
             $serviceOrder = ServiceOrder::create([
                 'order_number' => $orderNumber,
@@ -152,7 +152,10 @@ class ServiceOrderController extends Controller
 
             return redirect()->route('admin.service-order.show', $serviceOrder->id)->with('success', 'Service Order berhasil dibuat.');
         } catch (\Exception $e) {
-            DB::rollBack();
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
+            \Log::error('ServiceOrder store error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage())->withInput();
         }
     }
@@ -175,10 +178,13 @@ class ServiceOrderController extends Controller
     public function update(UpdateServiceOrderRequest $request, string $id)
     {
         try {
-            \Log::info('UpdateServiceOrderRequest Data:', $request->validated());
-            DB::beginTransaction();
-            $serviceOrder = ServiceOrder::with('items')->findOrFail($id);
             $data = $request->validated();
+            \Log::info('UpdateServiceOrderRequest Data:', $data);
+            
+            // Ambil order beserta items di luar blok transaksi untuk mencegah query abort di PgBouncer/Postgres
+            $serviceOrder = ServiceOrder::with('items')->findOrFail($id);
+
+            DB::beginTransaction();
             
             // 1. Restore previous sparepart stock and remove old transaction logs
             foreach ($serviceOrder->items as $item) {
@@ -259,8 +265,9 @@ class ServiceOrderController extends Controller
                 $vehicle = $serviceOrder->vehicle;
                 
                 if ($customer && $customer->phone) {
-                    $servicesStr = $serviceOrder->items->where('type', 'service')->map(function($item) {
-                        return '- ' . $item->service->name;
+                    $freshServiceOrder = $serviceOrder->load(['items.service']);
+                    $servicesStr = $freshServiceOrder->items->where('type', 'service')->map(function($item) {
+                        return '- ' . ($item->service?->name ?? $item->item_name);
                     })->implode("\n");
                     if (empty($servicesStr)) $servicesStr = '-';
 
@@ -289,7 +296,10 @@ class ServiceOrderController extends Controller
 
             return redirect()->route('admin.service-order.show', $serviceOrder->id)->with('success', 'Service Order berhasil diperbarui.');
         } catch (\Exception $e) {
-            DB::rollBack();
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
+            \Log::error('ServiceOrder update error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage())->withInput();
         }
     }

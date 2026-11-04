@@ -9,7 +9,7 @@ $pgsqlPort = env('DB_PORT') == '3306' ? '5432' : env('DB_PORT', '5432');
 if (is_string($databaseUrl) && str_contains($databaseUrl, '.neon.tech')) {
     $parsedHost = parse_url($databaseUrl, PHP_URL_HOST);
     if ($parsedHost) {
-        $endpointId = explode('.', $parsedHost)[0];
+        $endpointId = preg_replace('/-pooler$/', '', explode('.', $parsedHost)[0]);
         $pgsqlPort .= ';options=endpoint=' . $endpointId;
     }
 }
@@ -108,6 +108,9 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+            'options' => [
+                \PDO::ATTR_EMULATE_PREPARES => true,
+            ],
         ],
 
         'sqlsrv' => [

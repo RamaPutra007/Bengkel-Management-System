@@ -130,6 +130,11 @@
                     </a>
                 </div>
             </div>
+
+            <a href="{{ route('admin.kipay.index') }}" class="flex items-center gap-3 px-4 py-2.5 rounded-xl {{ request()->routeIs('admin.kipay.*') ? 'bg-orange-50 text-[#FF6B00] font-medium' : 'hover:bg-slate-50 hover:text-slate-900 text-slate-500' }} transition-all duration-200">
+                <svg class="w-5 h-5 {{ request()->routeIs('admin.kipay.*') ? 'text-[#FF6B00]' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                <span>Gateway KiPay (QRIS)</span>
+            </a>
         @endrole
 
         @role('KASIR')
@@ -161,19 +166,18 @@
 </aside>
 
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
+    function initSidebarScroll() {
         const sidebarNav = document.getElementById("sidebar-nav");
         if (sidebarNav) {
-            // Restore scroll position
             const scrollPos = localStorage.getItem("sidebar-scroll-pos");
             if (scrollPos) {
                 sidebarNav.scrollTop = parseInt(scrollPos, 10);
             }
-            
-            // Save scroll position on scroll
-            sidebarNav.addEventListener("scroll", function() {
+            sidebarNav.onscroll = function() {
                 localStorage.setItem("sidebar-scroll-pos", sidebarNav.scrollTop);
-            });
+            };
         }
-    });
+    }
+    document.addEventListener("DOMContentLoaded", initSidebarScroll);
+    document.addEventListener("turbo:load", initSidebarScroll);
 </script>

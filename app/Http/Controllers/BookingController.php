@@ -54,7 +54,9 @@ class BookingController extends Controller
 
             DB::commit();
         } catch (\Exception $e) {
-            DB::rollBack();
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
             \Illuminate\Support\Facades\Log::error('Booking Transaction Error: ' . $e->getMessage());
             return back()->with('error', 'Terjadi kesalahan pada sistem saat memproses booking Anda. Silakan coba beberapa saat lagi.')->withInput();
         }

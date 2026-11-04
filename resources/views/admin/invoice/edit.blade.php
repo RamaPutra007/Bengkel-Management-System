@@ -53,23 +53,36 @@
                                 <label class="flex items-center gap-3 cursor-pointer border p-4 rounded-xl hover:bg-slate-50 transition-colors {{ old('payment_action') == 'qris' ? 'border-[#FF6B00] bg-orange-50' : 'border-slate-200' }}" id="lbl_qris">
                                     <input type="radio" name="payment_action" value="qris" class="text-[#FF6B00] focus:ring-[#FF6B00]" {{ old('payment_action') == 'qris' ? 'checked' : '' }} onchange="toggleActionUI()">
                                     <div>
-                                        <span class="font-bold text-slate-700 block">Kirim QRIS (Otomatis Lunas)</span>
-                                        <span class="text-xs text-slate-500">Kirim kode QRIS ke WhatsApp pelanggan. Status akan otomatis berubah lunas ketika pelanggan selesai membayar.</span>
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold text-slate-700 block">Kirim QRIS KiPay (Otomatis Lunas)</span>
+                                            @if($isKiPayConfigured ?? false)
+                                                <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-orange-100 text-[#FF6B00]">KIPAY</span>
+                                            @endif
+                                        </div>
+                                        <span class="text-xs text-slate-500">Buat transaksi QRIS KiPay dan kirim langsung ke WhatsApp pelanggan. Status tagihan otomatis lunas ketika pelanggan selesai membayar.</span>
                                     </div>
                                 </label>
-
 
                         </div>
 
                         <div id="qris_preview_container" class="hidden mt-4 bg-slate-50 p-6 rounded-xl border border-slate-200 text-center">
                             <h4 class="font-bold text-slate-700 mb-2 flex items-center justify-center gap-2">
                                 <svg class="w-5 h-5 text-[#FF6B00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>
-                                Preview QRIS (Akan Dikirim ke WA)
+                                <span>Preview QRIS (Akan Dikirim ke WhatsApp)</span>
                             </h4>
                             <div class="inline-block p-2 bg-white rounded-xl shadow-sm border border-slate-100 mb-2">
-                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={{ urlencode($dynamicQris) }}" alt="QRIS Dinamis" class="w-48 h-48 mx-auto">
+                                @if($invoice->kipay_trx_id)
+                                    <img src="{{ route('admin.invoice.kipay-qr', $invoice->id) }}" alt="QRIS KiPay" class="w-48 h-48 mx-auto object-contain">
+                                @else
+                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={{ urlencode($dynamicQris) }}" alt="QRIS Dinamis" class="w-48 h-48 mx-auto object-contain">
+                                @endif
                             </div>
-                            <p class="text-sm text-slate-500">Nominal: <strong class="text-slate-700">Rp {{ number_format($invoice->grand_total, 0, ',', '.') }}</strong></p>
+                            <p class="text-sm text-slate-500">Nominal: <strong class="text-slate-700">Rp {{ number_format($invoice->kipay_amount ?: $invoice->grand_total, 0, ',', '.') }}</strong></p>
+                            @if($isKiPayConfigured ?? false)
+                                <p class="text-xs text-emerald-600 font-medium mt-1">✓ KiPay Payment Gateway Aktif (Mode: {{ strtoupper($kiPayMode ?? 'sandbox') }})</p>
+                            @else
+                                <p class="text-xs text-amber-600 font-medium mt-1">Perhatian: API Key KiPay belum diatur di menu Config KiPay, sistem akan menggunakan QRIS statis.</p>
+                            @endif
                         </div>
 
                         <div>

@@ -9,7 +9,7 @@ class FinanceController extends Controller
 {
     public function index()
     {
-        $recentInvoices = \App\Models\Invoice::with(['serviceOrder.vehicle.customer'])
+        $recentInvoices = \App\Models\Invoice::with(['serviceOrder.customer', 'serviceOrder.vehicle'])
             ->latest()
             ->take(10)
             ->get();
