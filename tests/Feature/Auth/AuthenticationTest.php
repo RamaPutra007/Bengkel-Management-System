@@ -3,6 +3,7 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\User;
+use Spatie\Permission\Models\Role;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -50,5 +51,59 @@ class AuthenticationTest extends TestCase
 
         $this->assertGuest();
         $response->assertRedirect('/');
+    }
+
+    public function test_admin_can_login_and_redirect_to_admin_dashboard(): void
+    {
+        Role::firstOrCreate(['name' => 'ADMIN']);
+        $admin = User::factory()->create();
+        $admin->assignRole('ADMIN');
+
+        $response = $this->post('/login', [
+            'email' => $admin->email,
+            'password' => 'password',
+        ]);
+
+        $this->assertAuthenticated();
+        $response->assertRedirect(route('dashboard', absolute: false));
+
+        $dashboardResponse = $this->actingAs($admin)->get('/dashboard');
+        $dashboardResponse->assertRedirect(route('admin.dashboard'));
+    }
+
+    public function test_owner_can_login_and_redirect_to_owner_dashboard(): void
+    {
+        Role::firstOrCreate(['name' => 'OWNER']);
+        $owner = User::factory()->create();
+        $owner->assignRole('OWNER');
+
+        $response = $this->post('/login', [
+            'email' => $owner->email,
+            'password' => 'password',
+        ]);
+
+        $this->assertAuthenticated();
+        $response->assertRedirect(route('dashboard', absolute: false));
+
+        $dashboardResponse = $this->actingAs($owner)->get('/dashboard');
+        $dashboardResponse->assertRedirect(route('owner.dashboard'));
+    }
+
+    public function test_kasir_can_login_and_redirect_to_kasir_dashboard(): void
+    {
+        Role::firstOrCreate(['name' => 'KASIR']);
+        $kasir = User::factory()->create();
+        $kasir->assignRole('KASIR');
+
+        $response = $this->post('/login', [
+            'email' => $kasir->email,
+            'password' => 'password',
+        ]);
+
+        $this->assertAuthenticated();
+        $response->assertRedirect(route('dashboard', absolute: false));
+
+        $dashboardResponse = $this->actingAs($kasir)->get('/dashboard');
+        $dashboardResponse->assertRedirect(route('kasir.dashboard'));
     }
 }
