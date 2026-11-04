@@ -22,7 +22,6 @@
         "@laravel/multiplex": "^0.4.1"
     },
     "dependencies": {
-        "@hotwired/turbo": "^8.0.23",
         "instant.page": "^5.2.0"
     }
 }

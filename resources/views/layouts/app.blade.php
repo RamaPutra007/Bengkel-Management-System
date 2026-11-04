@@ -7,7 +7,6 @@
 
         <title>{{ config('app.name', 'Laravel') }}</title>
         <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
-        <meta name="turbo-cache-control" content="no-preview">
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">

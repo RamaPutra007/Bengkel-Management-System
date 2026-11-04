@@ -19,7 +19,7 @@
                 </div>
             @endif
 
-            <form action="{{ route('admin.service-order.store') }}" method="POST" id="so-form">
+            <form action="{{ route('admin.service-order.store') }}" method="POST" id="so-form" onsubmit="return validateOrderForm(event)">
                 @csrf
                 
                 <!-- Section 1: Informasi Pelanggan & Kendaraan -->
@@ -30,7 +30,7 @@
                     <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label for="customer_id" class="block text-sm font-medium text-slate-700 mb-1">Pelanggan <span class="text-red-500">*</span></label>
-                            <select name="customer_id" id="customer_id" required class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-[#FF6B00] text-sm bg-white">
+                            <select name="customer_id" id="customer_id" onchange="loadCustomerVehicles(this.value)" required class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-[#FF6B00] text-sm bg-white">
                                 <option value="">-- Pilih Pelanggan --</option>
                                 @foreach($customers as $customer)
                                     <option value="{{ $customer->id }}" {{ old('customer_id') == $customer->id ? 'selected' : '' }}>{{ $customer->name }} ({{ $customer->phone }})</option>
@@ -73,7 +73,7 @@
                             <label for="status" class="block text-sm font-medium text-slate-700 mb-1">Status Order <span class="text-red-500">*</span></label>
                             <select name="status" id="status" required class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-[#FF6B00] text-sm bg-white">
                                 <option value="pending" {{ old('status') == 'pending' ? 'selected' : '' }}>Menunggu (Pending)</option>
-                                <option value="in_progress" {{ old('status') == 'in_progress' ? 'selected' : '' }}>Sedang Dikerjakan (In Progress)</option>
+                                <option value="in_progress" {{ old('status', 'in_progress') == 'in_progress' ? 'selected' : '' }}>Sedang Dikerjakan (In Progress)</option>
                                 <option value="completed" {{ old('status') == 'completed' ? 'selected' : '' }}>Selesai (Completed)</option>
                             </select>
                         </div>
@@ -97,7 +97,7 @@
                                         <option value="{{ $srv->id }}" data-price="{{ $srv->price }}" data-name="{{ $srv->name }}">{{ $srv->name }} - Rp {{ number_format($srv->price, 0, ',', '.') }}</option>
                                     @endforeach
                                 </select>
-                                <button type="button" id="btn_add_service" class="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-medium text-sm border border-blue-200 whitespace-nowrap">
+                                <button type="button" id="btn_add_service" onclick="addServiceItem()" class="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-medium text-sm border border-blue-200 whitespace-nowrap cursor-pointer">
                                     + Jasa
                                 </button>
                             </div>
@@ -113,11 +113,44 @@
                                         <option value="{{ $sp->id }}" data-price="{{ $sp->price }}" data-name="{{ $sp->name }}" data-stock="{{ $sp->stock }}">{{ $sp->name }} (Stok: {{ $sp->stock }}) - Rp {{ number_format($sp->price, 0, ',', '.') }}</option>
                                     @endforeach
                                 </select>
-                                <button type="button" id="btn_add_sparepart" class="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-medium text-sm border border-blue-200 whitespace-nowrap">
+                                <button type="button" id="btn_add_sparepart" onclick="addSparepartItem()" class="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-medium text-sm border border-blue-200 whitespace-nowrap cursor-pointer">
                                     + Suku Cadang
                                 </button>
                             </div>
                         </div>
+
+                        @php
+                            $oldItems = old('items');
+                            $renderedItems = collect();
+                            if ($oldItems && is_array($oldItems)) {
+                                $renderedItems = collect($oldItems)->map(function($item, $idx) use ($services, $spareparts) {
+                                    $type = $item['type'] ?? 'service';
+                                    $itemId = $item['item_id'] ?? null;
+                                    $qty = (int)($item['quantity'] ?? 1);
+                                    $price = (int)($item['price'] ?? 0);
+                                    $name = '';
+                                    $maxStock = null;
+                                    if ($type === 'service') {
+                                        $srv = $services->firstWhere('id', $itemId);
+                                        $name = $srv ? $srv->name : 'Jasa';
+                                    } else {
+                                        $sp = $spareparts->firstWhere('id', $itemId);
+                                        $name = $sp ? $sp->name : 'Suku Cadang';
+                                        $maxStock = $sp ? $sp->stock : null;
+                                    }
+                                    return [
+                                        'type' => $type,
+                                        'item_id' => $itemId,
+                                        'name' => $name,
+                                        'price' => $price,
+                                        'quantity' => $qty,
+                                        'subtotal' => $price * $qty,
+                                        'max_stock' => $maxStock
+                                    ];
+                                });
+                            }
+                            $initialGrandTotal = $renderedItems->sum('subtotal');
+                        @endphp
 
                         <!-- Tabel Keranjang -->
                         <div class="overflow-x-auto border border-slate-200 rounded-xl mb-4">
@@ -133,16 +166,49 @@
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-100" id="items_tbody">
-                                    <tr id="empty_row">
-                                        <td colspan="6" class="px-4 py-8 text-center text-slate-500 text-sm">
-                                            Belum ada item yang ditambahkan. Silakan pilih jasa atau suku cadang di atas.
-                                        </td>
-                                    </tr>
+                                    @forelse($renderedItems as $idx => $item)
+                                        <tr id="item_row_{{ $idx }}" class="bg-white item-row border-b border-slate-100">
+                                            <td class="px-4 py-3 text-sm font-medium text-slate-800">
+                                                {{ $item['name'] }}
+                                                <input type="hidden" name="items[{{ $idx }}][type]" value="{{ $item['type'] }}">
+                                                <input type="hidden" name="items[{{ $idx }}][item_id]" value="{{ $item['item_id'] }}">
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                @if($item['type'] === 'service')
+                                                    <span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-semibold">Jasa</span>
+                                                @else
+                                                    <span class="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-semibold">Sparepart</span>
+                                                @endif
+                                            </td>
+                                            <td class="px-4 py-3 text-sm">
+                                                Rp {{ number_format($item['price'], 0, ',', '.') }}
+                                                <input type="hidden" name="items[{{ $idx }}][price]" value="{{ $item['price'] }}">
+                                            </td>
+                                            <td class="px-4 py-3 w-28">
+                                                <input type="number" name="items[{{ $idx }}][quantity]" value="{{ $item['quantity'] }}" min="1" {{ $item['max_stock'] !== null ? 'max=' . $item['max_stock'] : '' }} class="w-full px-2 py-1 border border-slate-300 rounded item-qty text-center" data-price="{{ $item['price'] }}" data-target-subtotal="subtotal_{{ $idx }}" data-target-input="input_subtotal_{{ $idx }}" oninput="updateRowSubtotal(this)">
+                                            </td>
+                                            <td class="px-4 py-3 text-sm font-bold text-slate-700">
+                                                <span id="subtotal_{{ $idx }}">Rp {{ number_format($item['subtotal'], 0, ',', '.') }}</span>
+                                                <input type="hidden" class="item-subtotal-input" id="input_subtotal_{{ $idx }}" value="{{ $item['subtotal'] }}">
+                                            </td>
+                                            <td class="px-4 py-3 text-center">
+                                                <button type="button" class="text-red-500 hover:text-red-700 p-1 cursor-pointer" onclick="removeItemRow('item_row_{{ $idx }}')" title="Hapus Item">
+                                                    <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr id="empty_row">
+                                            <td colspan="6" class="px-4 py-8 text-center text-slate-500 text-sm">
+                                                Belum ada item yang ditambahkan. Silakan pilih jasa atau suku cadang di atas.
+                                            </td>
+                                        </tr>
+                                    @endforelse
                                 </tbody>
                                 <tfoot>
                                     <tr class="bg-slate-50 border-t border-slate-200">
                                         <td colspan="4" class="px-4 py-4 text-right font-bold text-slate-700">Total Estimasi Harga:</td>
-                                        <td colspan="2" class="px-4 py-4 font-bold text-xl text-[#FF6B00]" id="grand_total_display">Rp 0</td>
+                                        <td colspan="2" class="px-4 py-4 font-bold text-xl text-[#FF6B00]" id="grand_total_display">Rp {{ number_format($initialGrandTotal, 0, ',', '.') }}</td>
                                     </tr>
                                 </tfoot>
                             </table>
@@ -164,7 +230,7 @@
                     <a href="{{ route('admin.service-order.index') }}" class="px-6 py-3 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors font-medium">
                         Batal
                     </a>
-                    <button type="submit" class="px-6 py-3 bg-[#FF6B00] text-white rounded-lg hover:bg-orange-600 transition-colors font-medium shadow-sm">
+                    <button type="submit" class="px-6 py-3 bg-[#FF6B00] text-white rounded-lg hover:bg-orange-600 transition-colors font-medium shadow-sm cursor-pointer">
                         Simpan & Buat Service Order
                     </button>
                 </div>
@@ -175,210 +241,227 @@
     <!-- JavaScript untuk Dinamika Form -->
     <x-slot name="scripts">
         <script>
-            (function() {
-                function initCreateOrderForm() {
-                    const form = document.getElementById('so-form');
-                    if (!form || form.dataset.initialized === 'true') return;
-                    form.dataset.initialized = 'true';
-                const customerSelect = document.getElementById('customer_id');
+            let itemIndex = {{ count($renderedItems) + 10 }};
+
+            window.loadCustomerVehicles = function(customerId) {
                 const vehicleSelect = document.getElementById('vehicle_id');
                 const vehicleHelp = document.getElementById('vehicle-help');
+                if (!vehicleSelect) return;
 
-                // Dynamic Vehicles based on Customer
-                customerSelect.addEventListener('change', function() {
-                    const customerId = this.value;
-                    vehicleSelect.innerHTML = '<option value="">-- Memuat Kendaraan... --</option>';
-                    vehicleSelect.disabled = true;
+                vehicleSelect.innerHTML = '<option value="">-- Memuat Kendaraan... --</option>';
+                vehicleSelect.disabled = true;
 
-                    if (!customerId) {
-                        vehicleSelect.innerHTML = '<option value="">-- Pilih Pelanggan Terlebih Dahulu --</option>';
-                        vehicleHelp.innerText = 'Otomatis dimuat setelah memilih pelanggan.';
-                        return;
-                    }
-
-                    const fetchUrl = `/admin/customer-vehicles/${customerId}`;
-
-                    fetch(fetchUrl, {
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest'
-                        }
-                    })
-                        .then(response => {
-                            if (!response.ok) throw new Error('Network response was not ok');
-                            return response.json();
-                        })
-                        .then(data => {
-                            vehicleSelect.disabled = false;
-                            if (data.length === 0) {
-                                vehicleSelect.innerHTML = '<option value="">-- Pelanggan Tidak Memiliki Kendaraan --</option>';
-                                vehicleHelp.innerHTML = '<span class="text-red-500">Silakan tambahkan kendaraan untuk pelanggan ini di menu Master Data terlebih dahulu.</span>';
-                            } else {
-                                vehicleSelect.innerHTML = '<option value="">-- Pilih Kendaraan --</option>';
-                                data.forEach(vehicle => {
-                                    // if old('vehicle_id') matches, select it
-                                    const oldVehicleId = "{{ old('vehicle_id') }}";
-                                    const selected = oldVehicleId == vehicle.id ? 'selected' : '';
-                                    vehicleSelect.innerHTML += `<option value="${vehicle.id}" ${selected}>${vehicle.brand} ${vehicle.model} (${vehicle.license_plate})</option>`;
-                                });
-                                vehicleHelp.innerText = 'Pilih kendaraan yang akan diservis.';
-                            }
-                        })
-                        .catch(err => {
-                            vehicleSelect.innerHTML = '<option value="">-- Gagal memuat data --</option>';
-                        });
-                });
-
-                // Trigger change if customer is already selected (e.g. from validation old data)
-                if (customerSelect.value) {
-                    customerSelect.dispatchEvent(new Event('change'));
+                if (!customerId) {
+                    vehicleSelect.innerHTML = '<option value="">-- Pilih Pelanggan Terlebih Dahulu --</option>';
+                    if (vehicleHelp) vehicleHelp.innerText = 'Otomatis dimuat setelah memilih pelanggan.';
+                    return;
                 }
 
-                // Dynamic Items Cart
-                let itemIndex = 0;
+                const fetchUrl = `/admin/customer-vehicles/${customerId}`;
+
+                fetch(fetchUrl, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.json();
+                })
+                .then(data => {
+                    vehicleSelect.disabled = false;
+                    if (data.length === 0) {
+                        vehicleSelect.innerHTML = '<option value="">-- Pelanggan Tidak Memiliki Kendaraan --</option>';
+                        if (vehicleHelp) vehicleHelp.innerHTML = '<span class="text-red-500">Silakan tambahkan kendaraan untuk pelanggan ini di menu Master Data terlebih dahulu.</span>';
+                    } else {
+                        vehicleSelect.innerHTML = '<option value="">-- Pilih Kendaraan --</option>';
+                        const oldVehicleId = "{{ old('vehicle_id') }}";
+                        data.forEach(vehicle => {
+                            const selected = oldVehicleId == vehicle.id ? 'selected' : '';
+                            vehicleSelect.innerHTML += `<option value="${vehicle.id}" ${selected}>${vehicle.brand} ${vehicle.model} (${vehicle.license_plate})</option>`;
+                        });
+                        if (vehicleHelp) vehicleHelp.innerText = 'Pilih kendaraan yang akan diservis.';
+                    }
+                })
+                .catch(err => {
+                    vehicleSelect.innerHTML = '<option value="">-- Gagal memuat data --</option>';
+                });
+            };
+
+            window.formatRupiah = function(number) {
+                return new Intl.NumberFormat('id-ID').format(number);
+            };
+
+            window.updateGrandTotal = function() {
                 let grandTotal = 0;
+                document.querySelectorAll('.item-subtotal-input').forEach(input => {
+                    grandTotal += parseInt(input.value || 0);
+                });
+                const display = document.getElementById('grand_total_display');
+                if (display) {
+                    display.innerText = 'Rp ' + window.formatRupiah(grandTotal);
+                }
+            };
+
+            window.checkEmpty = function() {
+                const tbody = document.getElementById('items_tbody');
+                if (!tbody) return;
+                const rows = tbody.querySelectorAll('.item-row');
+                const emptyRow = document.getElementById('empty_row');
+                if (rows.length === 0) {
+                    if (!emptyRow) {
+                        tbody.insertAdjacentHTML('beforeend', `
+                            <tr id="empty_row">
+                                <td colspan="6" class="px-4 py-8 text-center text-slate-500 text-sm">
+                                    Belum ada item yang ditambahkan. Silakan pilih jasa atau suku cadang di atas.
+                                </td>
+                            </tr>
+                        `);
+                    } else {
+                        emptyRow.style.display = 'table-row';
+                    }
+                } else {
+                    if (emptyRow) {
+                        emptyRow.style.display = 'none';
+                    }
+                }
+            };
+
+            window.updateRowSubtotal = function(targetInput) {
+                let qty = parseInt(targetInput.value);
+                if (isNaN(qty) || qty < 1) {
+                    qty = 1;
+                    targetInput.value = 1;
+                }
+
+                let max = parseInt(targetInput.getAttribute('max'));
+                if (!isNaN(max) && qty > max) {
+                    alert('Kuantitas melebihi stok yang tersedia (' + max + ')!');
+                    qty = max;
+                    targetInput.value = max;
+                }
+
+                const price = parseInt(targetInput.getAttribute('data-price')) || 0;
+                const subtotal = qty * price;
+
+                const textTargetId = targetInput.getAttribute('data-target-subtotal');
+                const inputTargetId = targetInput.getAttribute('data-target-input');
+
+                const textEl = document.getElementById(textTargetId);
+                if (textEl) textEl.innerText = 'Rp ' + window.formatRupiah(subtotal);
+
+                const inputEl = document.getElementById(inputTargetId);
+                if (inputEl) inputEl.value = subtotal;
+
+                window.updateGrandTotal();
+            };
+
+            window.removeItemRow = function(rowId) {
+                const el = document.getElementById(rowId);
+                if (el) el.remove();
+                window.updateGrandTotal();
+                window.checkEmpty();
+            };
+
+            window.addItemToTable = function(type, id, name, price, maxStock = null) {
                 const tbody = document.getElementById('items_tbody');
                 const emptyRow = document.getElementById('empty_row');
-                const grandTotalDisplay = document.getElementById('grand_total_display');
+                if (!tbody) return;
+                if (emptyRow) emptyRow.style.display = 'none';
 
-                function formatRupiah(number) {
-                    return new Intl.NumberFormat('id-ID').format(number);
+                const rowId = 'item_row_' + itemIndex;
+                const typeLabel = type === 'service'
+                    ? '<span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-semibold">Jasa</span>'
+                    : '<span class="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-semibold">Sparepart</span>';
+
+                const maxAttr = (type === 'sparepart' && maxStock !== null) ? `max="${maxStock}"` : '';
+                const numPrice = parseInt(price) || 0;
+
+                const qtyInputHTML = `<input type="number" name="items[${itemIndex}][quantity]" value="1" min="1" ${maxAttr} class="w-full px-2 py-1 border border-slate-300 rounded item-qty text-center" data-price="${numPrice}" data-target-subtotal="subtotal_${itemIndex}" data-target-input="input_subtotal_${itemIndex}" oninput="updateRowSubtotal(this)">`;
+
+                const html = `
+                    <tr id="${rowId}" class="bg-white item-row border-b border-slate-100">
+                        <td class="px-4 py-3 text-sm font-medium text-slate-800">
+                            ${name}
+                            <input type="hidden" name="items[${itemIndex}][type]" value="${type}">
+                            <input type="hidden" name="items[${itemIndex}][item_id]" value="${id}">
+                        </td>
+                        <td class="px-4 py-3">${typeLabel}</td>
+                        <td class="px-4 py-3 text-sm">
+                            Rp ${window.formatRupiah(numPrice)}
+                            <input type="hidden" name="items[${itemIndex}][price]" value="${numPrice}">
+                        </td>
+                        <td class="px-4 py-3 w-28">
+                            ${qtyInputHTML}
+                        </td>
+                        <td class="px-4 py-3 text-sm font-bold text-slate-700">
+                            <span id="subtotal_${itemIndex}">Rp ${window.formatRupiah(numPrice)}</span>
+                            <input type="hidden" class="item-subtotal-input" id="input_subtotal_${itemIndex}" value="${numPrice}">
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <button type="button" class="text-red-500 hover:text-red-700 p-1 cursor-pointer" onclick="removeItemRow('${rowId}')" title="Hapus Item">
+                                <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+
+                tbody.insertAdjacentHTML('beforeend', html);
+                itemIndex++;
+                window.updateGrandTotal();
+                window.checkEmpty();
+            };
+
+            window.addServiceItem = function() {
+                const sel = document.getElementById('add_service_select');
+                if (!sel || !sel.value) {
+                    alert('Silakan pilih jasa terlebih dahulu.');
+                    return;
+                }
+                const opt = sel.options[sel.selectedIndex];
+                const id = sel.value;
+                const name = opt.getAttribute('data-name');
+                const price = opt.getAttribute('data-price');
+                window.addItemToTable('service', id, name, price);
+                sel.value = '';
+            };
+
+            window.addSparepartItem = function() {
+                const sel = document.getElementById('add_sparepart_select');
+                if (!sel || !sel.value) {
+                    alert('Silakan pilih sparepart terlebih dahulu.');
+                    return;
+                }
+                const opt = sel.options[sel.selectedIndex];
+                const id = sel.value;
+                const name = opt.getAttribute('data-name');
+                const price = opt.getAttribute('data-price');
+                const stock = parseInt(opt.getAttribute('data-stock') || 0);
+
+                if (stock < 1) {
+                    alert('Stok suku cadang ini habis!');
+                    return;
                 }
 
-                function updateGrandTotal() {
-                    grandTotal = 0;
-                    document.querySelectorAll('.item-subtotal-input').forEach(input => {
-                        grandTotal += parseInt(input.value || 0);
-                    });
-                    grandTotalDisplay.innerText = 'Rp ' + formatRupiah(grandTotal);
+                window.addItemToTable('sparepart', id, name, price, stock);
+                sel.value = '';
+            };
+
+            window.validateOrderForm = function(e) {
+                const count = document.querySelectorAll('.item-subtotal-input').length;
+                if (count === 0) {
+                    if (e) e.preventDefault();
+                    alert('Silakan tambahkan minimal 1 item (Jasa atau Suku Cadang) sebelum menyimpan.');
+                    return false;
                 }
+                return true;
+            };
 
-                function addItemToTable(type, id, name, price, maxStock = null) {
-                    if (emptyRow) emptyRow.style.display = 'none';
-
-                    const rowId = `item_row_${itemIndex}`;
-                    const typeLabel = type === 'service' ? '<span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">Jasa</span>' : '<span class="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs">Sparepart</span>';
-                    
-                    let qtyInputHTML = '';
-                    if (type === 'service') {
-                        qtyInputHTML = `<input type="number" name="items[${itemIndex}][quantity]" value="1" min="1" class="w-full px-2 py-1 border border-slate-300 rounded item-qty" data-price="${price}" data-target-subtotal="subtotal_${itemIndex}" data-target-input="input_subtotal_${itemIndex}">`;
-                    } else {
-                        qtyInputHTML = `<input type="number" name="items[${itemIndex}][quantity]" value="1" min="1" max="${maxStock}" class="w-full px-2 py-1 border border-slate-300 rounded item-qty" data-price="${price}" data-target-subtotal="subtotal_${itemIndex}" data-target-input="input_subtotal_${itemIndex}">`;
-                    }
-
-                    const html = `
-                        <tr id="${rowId}" class="bg-white">
-                            <td class="px-4 py-3 text-sm font-medium text-slate-800">
-                                ${name}
-                                <input type="hidden" name="items[${itemIndex}][type]" value="${type}">
-                                <input type="hidden" name="items[${itemIndex}][item_id]" value="${id}">
-                            </td>
-                            <td class="px-4 py-3">${typeLabel}</td>
-                            <td class="px-4 py-3 text-sm">
-                                Rp ${formatRupiah(price)}
-                                <input type="hidden" name="items[${itemIndex}][price]" value="${price}">
-                            </td>
-                            <td class="px-4 py-3">
-                                ${qtyInputHTML}
-                            </td>
-                            <td class="px-4 py-3 text-sm font-bold text-slate-700">
-                                <span id="subtotal_${itemIndex}">Rp ${formatRupiah(price)}</span>
-                                <input type="hidden" class="item-subtotal-input" id="input_subtotal_${itemIndex}" value="${price}">
-                            </td>
-                            <td class="px-4 py-3 text-center">
-                                <button type="button" class="text-red-500 hover:text-red-700" onclick="document.getElementById('${rowId}').remove(); updateGrandTotal(); checkEmpty();">
-                                    <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-
-                    tbody.insertAdjacentHTML('beforeend', html);
-                    itemIndex++;
-                    updateGrandTotal();
-                    
-                    // Attach event listener to new qty input
-                    document.querySelectorAll('.item-qty').forEach(input => {
-                        input.removeEventListener('input', updateRowSubtotal);
-                        input.addEventListener('input', updateRowSubtotal);
-                    });
-                }
-
-                function checkEmpty() {
-                    if (tbody.children.length === 1 && tbody.children[0].id === 'empty_row') {
-                        emptyRow.style.display = 'table-row';
-                    } else if (tbody.children.length === 0) {
-                        tbody.appendChild(emptyRow);
-                        emptyRow.style.display = 'table-row';
-                    }
-                }
-
-                function updateRowSubtotal(e) {
-                    let qty = parseInt(e.target.value);
-                    if (isNaN(qty) || qty < 1) qty = 1;
-                    
-                    // Check max stock
-                    let max = parseInt(e.target.getAttribute('max'));
-                    if (!isNaN(max) && qty > max) {
-                        alert('Kuantitas melebihi stok yang tersedia (' + max + ')!');
-                        qty = max;
-                        e.target.value = max;
-                    }
-
-                    const price = parseInt(e.target.getAttribute('data-price'));
-                    const subtotal = qty * price;
-                    
-                    const textTargetId = e.target.getAttribute('data-target-subtotal');
-                    const inputTargetId = e.target.getAttribute('data-target-input');
-                    
-                    document.getElementById(textTargetId).innerText = 'Rp ' + formatRupiah(subtotal);
-                    document.getElementById(inputTargetId).value = subtotal;
-                    
-                    updateGrandTotal();
-                }
-
-                // Button Listeners
-                document.getElementById('btn_add_service').addEventListener('click', function() {
-                    const sel = document.getElementById('add_service_select');
-                    if (!sel.value) return;
-                    
-                    const opt = sel.options[sel.selectedIndex];
-                    addItemToTable('service', sel.value, opt.getAttribute('data-name'), opt.getAttribute('data-price'));
-                    sel.value = ''; // reset
-                });
-
-                document.getElementById('btn_add_sparepart').addEventListener('click', function() {
-                    const sel = document.getElementById('add_sparepart_select');
-                    if (!sel.value) return;
-                    
-                    const opt = sel.options[sel.selectedIndex];
-                    const stock = parseInt(opt.getAttribute('data-stock'));
-                    
-                    if (stock < 1) {
-                        alert('Stok suku cadang ini habis!');
-                        return;
-                    }
-
-                    addItemToTable('sparepart', sel.value, opt.getAttribute('data-name'), opt.getAttribute('data-price'), stock);
-                    sel.value = ''; // reset
-                });
-
-                // Form submission validation
-                form.addEventListener('submit', function(e) {
-                    if (document.querySelectorAll('.item-subtotal-input').length === 0) {
-                        e.preventDefault();
-                        alert('Silakan tambahkan minimal 1 item (Jasa atau Suku Cadang) sebelum menyimpan.');
-                    }
-                });
+            // Auto-load customer vehicles if already selected (e.g. on validation error redirect)
+            const customerEl = document.getElementById('customer_id');
+            if (customerEl && customerEl.value) {
+                window.loadCustomerVehicles(customerEl.value);
             }
-
-            if (document.readyState !== 'loading') {
-                initCreateOrderForm();
-            } else {
-                document.addEventListener('DOMContentLoaded', initCreateOrderForm);
-            }
-            document.addEventListener('turbo:load', initCreateOrderForm);
-            document.addEventListener('turbo:render', initCreateOrderForm);
-        })();
         </script>
     </x-slot>
 </x-app-layout>

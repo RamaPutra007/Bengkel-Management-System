@@ -37,12 +37,12 @@
                             <span class="font-bold text-[#FF6B00]">{{ $serviceOrder->order_number }}</span>
                         </div>
                         <div class="flex justify-between items-center">
-                            <span class="text-sm text-slate-500 font-medium">Total Tagihan</span>
+                            <span class="text-sm text-slate-500 font-medium">Total Tagihan Awal</span>
                             <span class="font-bold text-slate-800">Rp {{ number_format($serviceOrder->total_price, 0, ',', '.') }}</span>
                         </div>
                     </div>
 
-                    <form action="{{ route('admin.service-order.update', $serviceOrder->id) }}" method="POST" id="so-edit-form" class="space-y-6">
+                    <form action="{{ route('admin.service-order.update', $serviceOrder->id) }}" method="POST" id="so-edit-form" onsubmit="return validateOrderForm(event)" class="space-y-6">
                         @csrf
                         @method('PUT')
 
@@ -97,7 +97,7 @@
                                             <option value="{{ $srv->id }}" data-price="{{ $srv->price }}" data-name="{{ $srv->name }}">{{ $srv->name }} - Rp {{ number_format($srv->price, 0, ',', '.') }}</option>
                                         @endforeach
                                     </select>
-                                    <button type="button" id="btn_add_service" class="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-medium text-sm border border-blue-200 whitespace-nowrap">
+                                    <button type="button" id="btn_add_service" onclick="addServiceItem()" class="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-medium text-sm border border-blue-200 whitespace-nowrap cursor-pointer">
                                         + Jasa
                                     </button>
                                 </div>
@@ -110,7 +110,6 @@
                                     <select id="add_sparepart_select" class="w-full md:w-2/3 px-4 py-2 border border-slate-200 rounded-lg text-sm bg-white">
                                         <option value="">-- Pilih Sparepart --</option>
                                         @foreach($spareparts as $sp)
-                                            <!-- Calculate available stock: current stock + (quantity already in this order) -->
                                             @php
                                                 $existingItemQty = $serviceOrder->items->where('type', 'sparepart')->where('sparepart_id', $sp->id)->first()->quantity ?? 0;
                                                 $availableStock = $sp->stock + $existingItemQty;
@@ -118,11 +117,60 @@
                                             <option value="{{ $sp->id }}" data-price="{{ $sp->price }}" data-name="{{ $sp->name }}" data-stock="{{ $availableStock }}">{{ $sp->name }} (Stok: {{ $sp->stock }}) - Rp {{ number_format($sp->price, 0, ',', '.') }}</option>
                                         @endforeach
                                     </select>
-                                    <button type="button" id="btn_add_sparepart" class="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-medium text-sm border border-blue-200 whitespace-nowrap">
+                                    <button type="button" id="btn_add_sparepart" onclick="addSparepartItem()" class="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-medium text-sm border border-blue-200 whitespace-nowrap cursor-pointer">
                                         + Suku Cadang
                                     </button>
                                 </div>
                             </div>
+
+                            @php
+                                $oldItems = old('items');
+                                if ($oldItems && is_array($oldItems)) {
+                                    $renderedItems = collect($oldItems)->map(function($item, $idx) use ($services, $spareparts) {
+                                        $type = $item['type'] ?? 'service';
+                                        $itemId = $item['item_id'] ?? null;
+                                        $qty = (int)($item['quantity'] ?? 1);
+                                        $price = (int)($item['price'] ?? 0);
+                                        $name = '';
+                                        $maxStock = null;
+                                        if ($type === 'service') {
+                                            $srv = $services->firstWhere('id', $itemId);
+                                            $name = $srv ? $srv->name : 'Jasa';
+                                        } else {
+                                            $sp = $spareparts->firstWhere('id', $itemId);
+                                            $name = $sp ? $sp->name : 'Suku Cadang';
+                                            $maxStock = $sp ? $sp->stock : null;
+                                        }
+                                        return [
+                                            'type' => $type,
+                                            'item_id' => $itemId,
+                                            'name' => $name,
+                                            'price' => $price,
+                                            'quantity' => $qty,
+                                            'subtotal' => $price * $qty,
+                                            'max_stock' => $maxStock
+                                        ];
+                                    });
+                                } else {
+                                    $renderedItems = $serviceOrder->items->map(function($item) use ($spareparts) {
+                                        $maxStock = null;
+                                        if ($item->type === 'sparepart') {
+                                            $sp = $spareparts->firstWhere('id', $item->sparepart_id);
+                                            $maxStock = $sp ? ($sp->stock + $item->quantity) : $item->quantity;
+                                        }
+                                        return [
+                                            'type' => $item->type,
+                                            'item_id' => $item->type === 'service' ? $item->service_id : $item->sparepart_id,
+                                            'name' => $item->item_name,
+                                            'price' => (int)$item->price,
+                                            'quantity' => (int)$item->quantity,
+                                            'subtotal' => (int)($item->price * $item->quantity),
+                                            'max_stock' => $maxStock
+                                        ];
+                                    });
+                                }
+                                $initialGrandTotal = $renderedItems->sum('subtotal');
+                            @endphp
 
                             <!-- Tabel Keranjang -->
                             <div class="overflow-x-auto border border-slate-200 rounded-xl mb-4">
@@ -138,16 +186,49 @@
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-slate-100" id="items_tbody">
-                                        <tr id="empty_row" style="display: none;">
-                                            <td colspan="6" class="px-4 py-8 text-center text-slate-500 text-sm">
-                                                Belum ada item yang ditambahkan. Silakan pilih jasa atau suku cadang di atas.
-                                            </td>
-                                        </tr>
+                                        @forelse($renderedItems as $idx => $item)
+                                            <tr id="item_row_{{ $idx }}" class="bg-white item-row border-b border-slate-100">
+                                                <td class="px-4 py-3 text-sm font-medium text-slate-800">
+                                                    {{ $item['name'] }}
+                                                    <input type="hidden" name="items[{{ $idx }}][type]" value="{{ $item['type'] }}">
+                                                    <input type="hidden" name="items[{{ $idx }}][item_id]" value="{{ $item['item_id'] }}">
+                                                </td>
+                                                <td class="px-4 py-3">
+                                                    @if($item['type'] === 'service')
+                                                        <span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-semibold">Jasa</span>
+                                                    @else
+                                                        <span class="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-semibold">Sparepart</span>
+                                                    @endif
+                                                </td>
+                                                <td class="px-4 py-3 text-sm">
+                                                    Rp {{ number_format($item['price'], 0, ',', '.') }}
+                                                    <input type="hidden" name="items[{{ $idx }}][price]" value="{{ $item['price'] }}">
+                                                </td>
+                                                <td class="px-4 py-3 w-28">
+                                                    <input type="number" name="items[{{ $idx }}][quantity]" value="{{ $item['quantity'] }}" min="1" {{ $item['max_stock'] !== null ? 'max=' . $item['max_stock'] : '' }} class="w-full px-2 py-1 border border-slate-300 rounded item-qty text-center" data-price="{{ $item['price'] }}" data-target-subtotal="subtotal_{{ $idx }}" data-target-input="input_subtotal_{{ $idx }}" oninput="updateRowSubtotal(this)">
+                                                </td>
+                                                <td class="px-4 py-3 text-sm font-bold text-slate-700">
+                                                    <span id="subtotal_{{ $idx }}">Rp {{ number_format($item['subtotal'], 0, ',', '.') }}</span>
+                                                    <input type="hidden" class="item-subtotal-input" id="input_subtotal_{{ $idx }}" value="{{ $item['subtotal'] }}">
+                                                </td>
+                                                <td class="px-4 py-3 text-center">
+                                                    <button type="button" class="text-red-500 hover:text-red-700 p-1 cursor-pointer" onclick="removeItemRow('item_row_{{ $idx }}')" title="Hapus Item">
+                                                        <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        @empty
+                                            <tr id="empty_row">
+                                                <td colspan="6" class="px-4 py-8 text-center text-slate-500 text-sm">
+                                                    Belum ada item yang ditambahkan. Silakan pilih jasa atau suku cadang di atas.
+                                                </td>
+                                            </tr>
+                                        @endforelse
                                     </tbody>
                                     <tfoot>
                                         <tr class="bg-slate-50 border-t border-slate-200">
                                             <td colspan="4" class="px-4 py-4 text-right font-bold text-slate-700">Total Estimasi Harga:</td>
-                                            <td colspan="2" class="px-4 py-4 font-bold text-xl text-[#FF6B00]" id="grand_total_display">Rp 0</td>
+                                            <td colspan="2" class="px-4 py-4 font-bold text-xl text-[#FF6B00]" id="grand_total_display">Rp {{ number_format($initialGrandTotal, 0, ',', '.') }}</td>
                                         </tr>
                                     </tfoot>
                                 </table>
@@ -162,7 +243,7 @@
                             <a href="{{ route('admin.service-order.index') }}" class="px-6 py-2.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors font-medium text-sm">
                                 Batal
                             </a>
-                            <button type="submit" class="px-6 py-2.5 bg-[#FF6B00] text-white rounded-lg hover:bg-orange-600 transition-colors font-medium text-sm">
+                            <button type="submit" class="px-6 py-2.5 bg-[#FF6B00] text-white rounded-lg hover:bg-orange-600 transition-colors font-medium text-sm shadow-sm cursor-pointer">
                                 Simpan Perubahan Order
                             </button>
                         </div>
@@ -175,189 +256,178 @@
     <!-- JavaScript untuk Dinamika Form -->
     <x-slot name="scripts">
         <script>
-            (function() {
-                function initEditOrderForm() {
-                    const form = document.getElementById('so-edit-form');
-                    if (!form || form.dataset.initialized === 'true') return;
-                    form.dataset.initialized = 'true';
+            let itemIndex = {{ count($renderedItems) + 10 }};
 
-                    let itemIndex = 0;
-                    let grandTotal = 0;
-                    const tbody = document.getElementById('items_tbody');
-                    const emptyRow = document.getElementById('empty_row');
-                    const grandTotalDisplay = document.getElementById('grand_total_display');
+            window.formatRupiah = function(number) {
+                return new Intl.NumberFormat('id-ID').format(number);
+            };
 
-                    function formatRupiah(number) {
-                        return new Intl.NumberFormat('id-ID').format(number);
-                    }
+            window.updateGrandTotal = function() {
+                let grandTotal = 0;
+                document.querySelectorAll('.item-subtotal-input').forEach(input => {
+                    grandTotal += parseInt(input.value || 0);
+                });
+                const display = document.getElementById('grand_total_display');
+                if (display) {
+                    display.innerText = 'Rp ' + window.formatRupiah(grandTotal);
+                }
+            };
 
-                    function updateGrandTotal() {
-                        grandTotal = 0;
-                        document.querySelectorAll('.item-subtotal-input').forEach(input => {
-                            grandTotal += parseInt(input.value || 0);
-                        });
-                        grandTotalDisplay.innerText = 'Rp ' + formatRupiah(grandTotal);
-                    }
-
-                    function addItemToTable(type, id, name, price, qty = 1, maxStock = null) {
-                        if (emptyRow) emptyRow.style.display = 'none';
-
-                        const rowId = `item_row_${itemIndex}`;
-                        const typeLabel = type === 'service' ? '<span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">Jasa</span>' : '<span class="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs">Sparepart</span>';
-                        
-                        let qtyInputHTML = '';
-                        if (type === 'service') {
-                            qtyInputHTML = `<input type="number" name="items[${itemIndex}][quantity]" value="${qty}" min="1" class="w-full px-2 py-1 border border-slate-300 rounded item-qty" data-price="${price}" data-target-subtotal="subtotal_${itemIndex}" data-target-input="input_subtotal_${itemIndex}">`;
-                        } else {
-                            qtyInputHTML = `<input type="number" name="items[${itemIndex}][quantity]" value="${qty}" min="1" max="${maxStock}" class="w-full px-2 py-1 border border-slate-300 rounded item-qty" data-price="${price}" data-target-subtotal="subtotal_${itemIndex}" data-target-input="input_subtotal_${itemIndex}">`;
-                        }
-
-                        const subtotal = qty * price;
-
-                        const html = `
-                            <tr id="${rowId}" class="bg-white">
-                                <td class="px-4 py-3 text-sm font-medium text-slate-800">
-                                    ${name}
-                                    <input type="hidden" name="items[${itemIndex}][type]" value="${type}">
-                                    <input type="hidden" name="items[${itemIndex}][item_id]" value="${id}">
-                                </td>
-                                <td class="px-4 py-3">${typeLabel}</td>
-                                <td class="px-4 py-3 text-sm">
-                                    Rp ${formatRupiah(price)}
-                                    <input type="hidden" name="items[${itemIndex}][price]" value="${price}">
-                                </td>
-                                <td class="px-4 py-3">
-                                    ${qtyInputHTML}
-                                </td>
-                                <td class="px-4 py-3 text-sm font-bold text-slate-700">
-                                    <span id="subtotal_${itemIndex}">Rp ${formatRupiah(subtotal)}</span>
-                                    <input type="hidden" class="item-subtotal-input" id="input_subtotal_${itemIndex}" value="${subtotal}">
-                                </td>
-                                <td class="px-4 py-3 text-center">
-                                    <button type="button" class="text-red-500 hover:text-red-700" onclick="document.getElementById('${rowId}').remove(); updateGrandTotal(); checkEmpty();">
-                                        <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                    </button>
+            window.checkEmpty = function() {
+                const tbody = document.getElementById('items_tbody');
+                if (!tbody) return;
+                const rows = tbody.querySelectorAll('.item-row');
+                const emptyRow = document.getElementById('empty_row');
+                if (rows.length === 0) {
+                    if (!emptyRow) {
+                        tbody.insertAdjacentHTML('beforeend', `
+                            <tr id="empty_row">
+                                <td colspan="6" class="px-4 py-8 text-center text-slate-500 text-sm">
+                                    Belum ada item yang ditambahkan. Silakan pilih jasa atau suku cadang di atas.
                                 </td>
                             </tr>
-                        `;
-
-                        tbody.insertAdjacentHTML('beforeend', html);
-                        itemIndex++;
-                        updateGrandTotal();
-                        
-                        document.querySelectorAll('.item-qty').forEach(input => {
-                            input.removeEventListener('input', updateRowSubtotal);
-                            input.addEventListener('input', updateRowSubtotal);
-                        });
+                        `);
+                    } else {
+                        emptyRow.style.display = 'table-row';
                     }
-
-                    function checkEmpty() {
-                        if (tbody.children.length === 1 && tbody.children[0].id === 'empty_row') {
-                            emptyRow.style.display = 'table-row';
-                        } else if (tbody.children.length === 0) {
-                            tbody.appendChild(emptyRow);
-                            emptyRow.style.display = 'table-row';
-                        }
-                    }
-
-                    function updateRowSubtotal(e) {
-                        let qty = parseInt(e.target.value);
-                        if (isNaN(qty) || qty < 1) qty = 1;
-                        
-                        let max = parseInt(e.target.getAttribute('max'));
-                        if (!isNaN(max) && qty > max) {
-                            alert('Kuantitas melebihi stok yang tersedia (' + max + ')!');
-                            qty = max;
-                            e.target.value = max;
-                        }
-
-                        const price = parseInt(e.target.getAttribute('data-price'));
-                        const subtotal = qty * price;
-                        
-                        const textTargetId = e.target.getAttribute('data-target-subtotal');
-                        const inputTargetId = e.target.getAttribute('data-target-input');
-                        
-                        document.getElementById(textTargetId).innerText = 'Rp ' + formatRupiah(subtotal);
-                        document.getElementById(inputTargetId).value = subtotal;
-                        
-                        updateGrandTotal();
-                    }
-
-                    // Initial Load of Existing Items
-                    @php
-                        $mappedItems = $serviceOrder->items->map(function($item) use ($spareparts) {
-                            $maxStock = null;
-                            if ($item->type === 'sparepart') {
-                                $sp = $spareparts->where('id', $item->sparepart_id)->first();
-                                $maxStock = $sp ? ($sp->stock + $item->quantity) : $item->quantity;
-                            }
-                            return [
-                                'type' => $item->type,
-                                'id' => $item->type === 'service' ? $item->service_id : $item->sparepart_id,
-                                'name' => $item->item_name,
-                                'price' => $item->price,
-                                'quantity' => $item->quantity,
-                                'maxStock' => $maxStock
-                            ];
-                        })->values();
-                    @endphp
-                    const existingItems = @json($mappedItems);
-
-                    existingItems.forEach(item => {
-                        addItemToTable(item.type, item.id, item.name, item.price, item.quantity, item.maxStock);
-                    });
-
-                    if (existingItems.length === 0) {
-                        checkEmpty();
-                    }
-
-                    // Button Listeners
-                    const btnAddService = document.getElementById('btn_add_service');
-                    if (btnAddService) {
-                        btnAddService.addEventListener('click', function() {
-                            const sel = document.getElementById('add_service_select');
-                            if (!sel || !sel.value) return;
-                            const opt = sel.options[sel.selectedIndex];
-                            addItemToTable('service', sel.value, opt.getAttribute('data-name'), opt.getAttribute('data-price'));
-                            sel.value = '';
-                        });
-                    }
-
-                    const btnAddSparepart = document.getElementById('btn_add_sparepart');
-                    if (btnAddSparepart) {
-                        btnAddSparepart.addEventListener('click', function() {
-                            const sel = document.getElementById('add_sparepart_select');
-                            if (!sel || !sel.value) return;
-                            
-                            const opt = sel.options[sel.selectedIndex];
-                            const stock = parseInt(opt.getAttribute('data-stock'));
-                            
-                            if (stock < 1) {
-                                alert('Stok suku cadang ini habis!');
-                                return;
-                            }
-
-                            addItemToTable('sparepart', sel.value, opt.getAttribute('data-name'), opt.getAttribute('data-price'), 1, stock);
-                            sel.value = '';
-                        });
-                    }
-
-                    form.addEventListener('submit', function(e) {
-                        if (document.querySelectorAll('.item-subtotal-input').length === 0) {
-                            e.preventDefault();
-                            alert('Silakan tambahkan minimal 1 item (Jasa atau Suku Cadang) sebelum menyimpan.');
-                        }
-                    });
-                }
-
-                if (document.readyState !== 'loading') {
-                    initEditOrderForm();
                 } else {
-                    document.addEventListener('DOMContentLoaded', initEditOrderForm);
+                    if (emptyRow) {
+                        emptyRow.style.display = 'none';
+                    }
                 }
-                document.addEventListener('turbo:load', initEditOrderForm);
-                document.addEventListener('turbo:render', initEditOrderForm);
-            })();
+            };
+
+            window.updateRowSubtotal = function(targetInput) {
+                let qty = parseInt(targetInput.value);
+                if (isNaN(qty) || qty < 1) {
+                    qty = 1;
+                    targetInput.value = 1;
+                }
+
+                let max = parseInt(targetInput.getAttribute('max'));
+                if (!isNaN(max) && qty > max) {
+                    alert('Kuantitas melebihi stok yang tersedia (' + max + ')!');
+                    qty = max;
+                    targetInput.value = max;
+                }
+
+                const price = parseInt(targetInput.getAttribute('data-price')) || 0;
+                const subtotal = qty * price;
+
+                const textTargetId = targetInput.getAttribute('data-target-subtotal');
+                const inputTargetId = targetInput.getAttribute('data-target-input');
+
+                const textEl = document.getElementById(textTargetId);
+                if (textEl) textEl.innerText = 'Rp ' + window.formatRupiah(subtotal);
+
+                const inputEl = document.getElementById(inputTargetId);
+                if (inputEl) inputEl.value = subtotal;
+
+                window.updateGrandTotal();
+            };
+
+            window.removeItemRow = function(rowId) {
+                const el = document.getElementById(rowId);
+                if (el) el.remove();
+                window.updateGrandTotal();
+                window.checkEmpty();
+            };
+
+            window.addItemToTable = function(type, id, name, price, qty = 1, maxStock = null) {
+                const tbody = document.getElementById('items_tbody');
+                const emptyRow = document.getElementById('empty_row');
+                if (!tbody) return;
+                if (emptyRow) emptyRow.style.display = 'none';
+
+                const rowId = 'item_row_' + itemIndex;
+                const typeLabel = type === 'service'
+                    ? '<span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-semibold">Jasa</span>'
+                    : '<span class="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-semibold">Sparepart</span>';
+
+                const maxAttr = (type === 'sparepart' && maxStock !== null) ? `max="${maxStock}"` : '';
+                const numPrice = parseInt(price) || 0;
+                const numQty = parseInt(qty) || 1;
+                const subtotal = numPrice * numQty;
+
+                const qtyInputHTML = `<input type="number" name="items[${itemIndex}][quantity]" value="${numQty}" min="1" ${maxAttr} class="w-full px-2 py-1 border border-slate-300 rounded item-qty text-center" data-price="${numPrice}" data-target-subtotal="subtotal_${itemIndex}" data-target-input="input_subtotal_${itemIndex}" oninput="updateRowSubtotal(this)">`;
+
+                const html = `
+                    <tr id="${rowId}" class="bg-white item-row border-b border-slate-100">
+                        <td class="px-4 py-3 text-sm font-medium text-slate-800">
+                            ${name}
+                            <input type="hidden" name="items[${itemIndex}][type]" value="${type}">
+                            <input type="hidden" name="items[${itemIndex}][item_id]" value="${id}">
+                        </td>
+                        <td class="px-4 py-3">${typeLabel}</td>
+                        <td class="px-4 py-3 text-sm">
+                            Rp ${window.formatRupiah(numPrice)}
+                            <input type="hidden" name="items[${itemIndex}][price]" value="${numPrice}">
+                        </td>
+                        <td class="px-4 py-3 w-28">
+                            ${qtyInputHTML}
+                        </td>
+                        <td class="px-4 py-3 text-sm font-bold text-slate-700">
+                            <span id="subtotal_${itemIndex}">Rp ${window.formatRupiah(subtotal)}</span>
+                            <input type="hidden" class="item-subtotal-input" id="input_subtotal_${itemIndex}" value="${subtotal}">
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <button type="button" class="text-red-500 hover:text-red-700 p-1 cursor-pointer" onclick="removeItemRow('${rowId}')" title="Hapus Item">
+                                <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+
+                tbody.insertAdjacentHTML('beforeend', html);
+                itemIndex++;
+                window.updateGrandTotal();
+                window.checkEmpty();
+            };
+
+            window.addServiceItem = function() {
+                const sel = document.getElementById('add_service_select');
+                if (!sel || !sel.value) {
+                    alert('Silakan pilih jasa terlebih dahulu.');
+                    return;
+                }
+                const opt = sel.options[sel.selectedIndex];
+                const id = sel.value;
+                const name = opt.getAttribute('data-name');
+                const price = opt.getAttribute('data-price');
+                window.addItemToTable('service', id, name, price, 1);
+                sel.value = '';
+            };
+
+            window.addSparepartItem = function() {
+                const sel = document.getElementById('add_sparepart_select');
+                if (!sel || !sel.value) {
+                    alert('Silakan pilih sparepart terlebih dahulu.');
+                    return;
+                }
+                const opt = sel.options[sel.selectedIndex];
+                const id = sel.value;
+                const name = opt.getAttribute('data-name');
+                const price = opt.getAttribute('data-price');
+                const stock = parseInt(opt.getAttribute('data-stock') || 0);
+
+                if (stock < 1) {
+                    alert('Stok suku cadang ini habis!');
+                    return;
+                }
+
+                window.addItemToTable('sparepart', id, name, price, 1, stock);
+                sel.value = '';
+            };
+
+            window.validateOrderForm = function(e) {
+                const count = document.querySelectorAll('.item-subtotal-input').length;
+                if (count === 0) {
+                    if (e) e.preventDefault();
+                    alert('Silakan tambahkan minimal 1 item (Jasa atau Suku Cadang) sebelum menyimpan.');
+                    return false;
+                }
+                return true;
+            };
         </script>
     </x-slot>
 </x-app-layout>
