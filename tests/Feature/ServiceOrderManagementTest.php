@@ -159,4 +159,30 @@ class ServiceOrderManagementTest extends TestCase
         $this->sparepart->refresh();
         $this->assertEquals(7, $this->sparepart->stock);
     }
+
+    public function test_edit_view_renders_existing_items()
+    {
+        $order = ServiceOrder::create([
+            'order_number' => 'SO-' . date('Ymd') . '-0001',
+            'customer_id' => $this->customer->id,
+            'vehicle_id' => $this->vehicle->id,
+            'mechanic_id' => $this->mechanic->id,
+            'status' => 'pending',
+            'total_price' => 55000,
+        ]);
+
+        $order->items()->create([
+            'type' => 'sparepart',
+            'sparepart_id' => $this->sparepart->id,
+            'item_name' => $this->sparepart->name,
+            'quantity' => 1,
+            'price' => 55000,
+            'subtotal' => 55000,
+        ]);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.service-order.edit', $order->id));
+        $response->assertStatus(200);
+        $response->assertSee('Oli MPX 0.8L');
+        $response->assertSee('55.000');
+    }
 }
