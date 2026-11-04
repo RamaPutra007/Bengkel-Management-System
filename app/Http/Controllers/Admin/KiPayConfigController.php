@@ -45,14 +45,16 @@ class KiPayConfigController extends Controller
             'is_active' => $request->has('is_active') ? true : false,
         ];
 
-        if ($request->filled('api_key')) {
-            $data['api_key'] = Crypt::encryptString(trim($request->input('api_key')));
+        $apiKeyInput = trim($request->input('api_key', ''));
+        if (!empty($apiKeyInput) && !str_contains($apiKeyInput, '*')) {
+            $data['api_key'] = Crypt::encryptString($apiKeyInput);
         } elseif ($request->has('clear_api_key')) {
             $data['api_key'] = null;
         }
 
-        if ($request->filled('webhook_secret')) {
-            $data['webhook_secret'] = Crypt::encryptString(trim($request->input('webhook_secret')));
+        $secretInput = trim($request->input('webhook_secret', ''));
+        if (!empty($secretInput) && !str_contains($secretInput, '*')) {
+            $data['webhook_secret'] = Crypt::encryptString($secretInput);
         } elseif ($request->has('clear_webhook_secret')) {
             $data['webhook_secret'] = null;
         }
@@ -87,9 +89,16 @@ class KiPayConfigController extends Controller
                 ])
                 ->get("{$baseUrl}/api/pay/{$apiKey}/transactions/PING-CHECK");
 
-            // Jika status 404 (transaksi tidak ditemukan), berarti API Key valid dan diakui server KiPay!
-            // Jika 401/403/Forbidden, API Key salah
-            if ($response->status() === 404 || $response->status() === 400 || $response->successful()) {
+            $errorMsg = $response->json('error') ?? '';
+
+            if ($response->status() === 404 && str_contains($errorMsg, 'Project tidak ditemukan')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Project KiPay tidak ditemukan. Pastikan API Key yang Anda masukkan sesuai dengan yang ada di dashboard KiPay.',
+                ], 400);
+            }
+
+            if ($response->successful() || str_contains($errorMsg, 'Transaksi tidak ditemukan') || $response->status() === 400) {
                 return response()->json([
                     'success' => true,
                     'message' => 'Koneksi ke KiPay API berhasil! API Key valid dan terhubung.',

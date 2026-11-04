@@ -80,20 +80,36 @@
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">
-                                API Key Project <span class="text-red-500">*</span>
-                            </label>
-                            <input type="text" name="api_key" value="{{ $config && $config->api_key ? '********************************' : ($apiKey ? substr($apiKey, 0, 8) . '...' : '') }}" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B00]/20 focus:border-[#FF6B00] transition-colors text-sm font-mono text-slate-700" placeholder="apg_sandbox_... atau apg_live_...">
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="block text-sm font-medium text-slate-700">
+                                    API Key Project <span class="text-red-500">*</span>
+                                </label>
+                                @if($isConfigured)
+                                    <span class="inline-flex items-center gap-1 text-xs text-emerald-600 font-semibold">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                        Tersimpan
+                                    </span>
+                                @endif
+                            </div>
+                            <input type="text" name="api_key" autocomplete="off" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B00]/20 focus:border-[#FF6B00] transition-colors text-sm font-mono text-slate-700" placeholder="{{ $isConfigured ? '•••••••••••••••• (Tersimpan - Kosongkan jika tidak diubah)' : 'Masukkan API Key (contoh: qpg_pub_...)' }}">
                             <p class="text-xs text-slate-500 mt-2">
                                 Dapatkan API Key di <a href="https://kipay.id/login" target="_blank" class="text-[#FF6B00] hover:underline font-semibold">Dashboard KiPay</a> &rarr; Pilih Project Sandbox / Production &rarr; Copy API Key.
                             </p>
                         </div>
 
                         <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">
-                                Webhook Secret (Opsional)
-                            </label>
-                            <input type="text" name="webhook_secret" value="{{ $config && $config->webhook_secret ? '********************************' : '' }}" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B00]/20 focus:border-[#FF6B00] transition-colors text-sm font-mono text-slate-700" placeholder="whsec_... (dari dashboard KiPay)">
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="block text-sm font-medium text-slate-700">
+                                    Webhook Secret (Opsional)
+                                </label>
+                                @if($config && $config->webhook_secret)
+                                    <span class="inline-flex items-center gap-1 text-xs text-emerald-600 font-semibold">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                        Tersimpan
+                                    </span>
+                                @endif
+                            </div>
+                            <input type="text" name="webhook_secret" autocomplete="off" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B00]/20 focus:border-[#FF6B00] transition-colors text-sm font-mono text-slate-700" placeholder="{{ $config && $config->webhook_secret ? '•••••••••••••••• (Tersimpan - Kosongkan jika tidak diubah)' : 'whsec_... (dari dashboard KiPay)' }}">
                             <p class="text-xs text-slate-500 mt-2">
                                 Digunakan untuk validasi keamanan HMAC-SHA256 agar backend hanya menerima sinyal resmi dari KiPay.
                             </p>

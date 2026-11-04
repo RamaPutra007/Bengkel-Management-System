@@ -201,7 +201,8 @@ class InvoiceController extends Controller
                     $kipayNotice = " (KiPay Trx ID: {$d['trx_id']})";
                 } else {
                     Log::warning('KiPay create transaction failed, fallback to static QRIS:', $trxResult);
-                    $kipayNotice = ' (Peringatan: KiPay gagal merespons, menggunakan QRIS statis)';
+                    $errMsg = $trxResult['message'] ?? 'gagal merespons';
+                    $kipayNotice = " (Peringatan: KiPay {$errMsg}, menggunakan QRIS statis)";
                 }
             } else {
                 $isKiPayUsed = true;
