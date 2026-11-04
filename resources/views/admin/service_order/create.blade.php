@@ -175,7 +175,11 @@
     <!-- JavaScript untuk Dinamika Form -->
     <x-slot name="scripts">
         <script>
-            document.addEventListener('DOMContentLoaded', function() {
+            (function() {
+                function initCreateOrderForm() {
+                    const form = document.getElementById('so-form');
+                    if (!form || form.dataset.initialized === 'true') return;
+                    form.dataset.initialized = 'true';
                 const customerSelect = document.getElementById('customer_id');
                 const vehicleSelect = document.getElementById('vehicle_id');
                 const vehicleHelp = document.getElementById('vehicle-help');
@@ -359,13 +363,22 @@
                 });
 
                 // Form submission validation
-                document.getElementById('so-form').addEventListener('submit', function(e) {
+                form.addEventListener('submit', function(e) {
                     if (document.querySelectorAll('.item-subtotal-input').length === 0) {
                         e.preventDefault();
                         alert('Silakan tambahkan minimal 1 item (Jasa atau Suku Cadang) sebelum menyimpan.');
                     }
                 });
-            });
+            }
+
+            if (document.readyState !== 'loading') {
+                initCreateOrderForm();
+            } else {
+                document.addEventListener('DOMContentLoaded', initCreateOrderForm);
+            }
+            document.addEventListener('turbo:load', initCreateOrderForm);
+            document.addEventListener('turbo:render', initCreateOrderForm);
+        })();
         </script>
     </x-slot>
 </x-app-layout>
