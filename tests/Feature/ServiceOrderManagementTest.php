@@ -292,4 +292,145 @@ class ServiceOrderManagementTest extends TestCase
         $resEdit->assertStatus(200);
         $resEdit->assertSee('Simpan Perubahan');
     }
+
+    public function test_can_create_new_service_order_without_items_when_pending()
+    {
+        $payload = [
+            'customer_id' => $this->customer->id,
+            'vehicle_id' => $this->vehicle->id,
+            'mechanic_id' => $this->mechanic->id,
+            'status' => 'pending',
+            'notes' => 'Pesanan baru belum ditentukan itemnya',
+        ];
+
+        $response = $this->actingAs($this->admin)->post(route('admin.service-order.store'), $payload);
+        $response->assertSessionHasNoErrors();
+
+        $order = ServiceOrder::where('notes', 'Pesanan baru belum ditentukan itemnya')->first();
+        $this->assertNotNull($order);
+        $this->assertEquals(0, $order->total_price);
+        $this->assertCount(0, $order->items);
+    }
+
+    public function test_cannot_create_service_order_with_status_completed_without_items()
+    {
+        $payload = [
+            'customer_id' => $this->customer->id,
+            'vehicle_id' => $this->vehicle->id,
+            'mechanic_id' => $this->mechanic->id,
+            'status' => 'completed',
+            'notes' => 'Langsung diset selesai tanpa item',
+        ];
+
+        $response = $this->actingAs($this->admin)->post(route('admin.service-order.store'), $payload);
+        $response->assertSessionHasErrors(['items']);
+    }
+
+    public function test_can_update_service_order_without_items_when_not_completed()
+    {
+        $order = ServiceOrder::create([
+            'order_number' => 'SO-BOOKING-001',
+            'customer_id' => $this->customer->id,
+            'vehicle_id' => $this->vehicle->id,
+            'status' => 'pending',
+            'total_price' => 0,
+        ]);
+
+        $updatePayload = [
+            'mechanic_id' => $this->mechanic->id,
+            'status' => 'in_progress',
+            'notes' => 'Mekanik ditugaskan, belum pilih sparepart',
+        ];
+
+        $response = $this->actingAs($this->admin)->put(route('admin.service-order.update', $order->id), $updatePayload);
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect(route('admin.service-order.show', $order->id));
+
+        $order->refresh();
+        $this->assertEquals($this->mechanic->id, $order->mechanic_id);
+        $this->assertEquals('in_progress', $order->status);
+        $this->assertEquals(0, $order->total_price);
+    }
+
+    public function test_cannot_update_service_order_to_completed_without_items()
+    {
+        $order = ServiceOrder::create([
+            'order_number' => 'SO-BOOKING-002',
+            'customer_id' => $this->customer->id,
+            'vehicle_id' => $this->vehicle->id,
+            'status' => 'in_progress',
+            'total_price' => 0,
+        ]);
+
+        $updatePayload = [
+            'mechanic_id' => $this->mechanic->id,
+            'status' => 'completed',
+            'notes' => 'Coba selesaikan tanpa item',
+        ];
+
+        $response = $this->actingAs($this->admin)->put(route('admin.service-order.update', $order->id), $updatePayload);
+        $response->assertSessionHasErrors(['items']);
+
+        // Check error message
+        $errors = session('errors');
+        $this->assertTrue($errors->has('items'));
+        $this->assertStringContainsString('selesai', $errors->first('items'));
+    }
+
+    public function test_can_accept_booking_and_update_it_without_items_until_completed()
+    {
+        $booking = \App\Models\Booking::create([
+            'customer_id' => $this->customer->id,
+            'vehicle_id' => $this->vehicle->id,
+            'booking_date' => now()->addDay()->format('Y-m-d'),
+            'booking_time' => '10:00',
+            'complaints' => 'Servis berkala',
+            'status' => 'Menunggu',
+        ]);
+
+        // Accept booking
+        $acceptResponse = $this->actingAs($this->admin)->post(route('admin.booking.accept', $booking->id));
+        $booking->refresh();
+        $this->assertEquals('Diproses', $booking->status);
+
+        $order = ServiceOrder::where('customer_id', $this->customer->id)->where('status', 'pending')->latest('id')->first();
+        $this->assertNotNull($order);
+        $this->assertEquals(0, $order->total_price);
+        $this->assertCount(0, $order->items);
+
+        // Update booking order: assign mechanic without items
+        $assignResponse = $this->actingAs($this->admin)->put(route('admin.service-order.update', $order->id), [
+            'mechanic_id' => $this->mechanic->id,
+            'status' => 'in_progress',
+            'notes' => 'Mulai diperiksa',
+        ]);
+        $assignResponse->assertSessionHasNoErrors();
+
+        // Trying to set completed without items fails
+        $failResponse = $this->actingAs($this->admin)->put(route('admin.service-order.update', $order->id), [
+            'mechanic_id' => $this->mechanic->id,
+            'status' => 'completed',
+            'notes' => 'Selesai tanpa item',
+        ]);
+        $failResponse->assertSessionHasErrors(['items']);
+
+        // Completing with items succeeds
+        $successResponse = $this->actingAs($this->admin)->put(route('admin.service-order.update', $order->id), [
+            'mechanic_id' => $this->mechanic->id,
+            'status' => 'completed',
+            'notes' => 'Pengerjaan selesai dengan item',
+            'items' => [
+                [
+                    'type' => 'service',
+                    'item_id' => $this->service->id,
+                    'quantity' => 1,
+                    'price' => $this->service->price,
+                ]
+            ]
+        ]);
+        $successResponse->assertSessionHasNoErrors();
+        $order->refresh();
+        $this->assertEquals('completed', $order->status);
+        $this->assertEquals($this->service->price, $order->total_price);
+    }
 }

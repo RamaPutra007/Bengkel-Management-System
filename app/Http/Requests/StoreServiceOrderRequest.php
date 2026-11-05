@@ -22,17 +22,36 @@ class StoreServiceOrderRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
+        $rules = [
             'customer_id' => ['required', 'exists:customers,id'],
             'vehicle_id' => ['required', 'exists:vehicles,id'],
             'mechanic_id' => ['nullable', 'exists:mechanics,id'],
             'status' => ['required', 'in:pending,in_progress,completed,cancelled'],
             'notes' => ['nullable', 'string'],
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.type' => ['required', 'in:service,sparepart'],
-            'items.*.item_id' => ['required', 'integer'],
-            'items.*.quantity' => ['required', 'integer', 'min:1'],
-            'items.*.price' => ['required', 'numeric', 'min:0'],
+        ];
+
+        if ($this->input('status') === 'completed') {
+            $rules['items'] = ['required', 'array', 'min:1'];
+        } else {
+            $rules['items'] = ['nullable', 'array'];
+        }
+
+        $rules['items.*.type'] = ['required_with:items', 'in:service,sparepart'];
+        $rules['items.*.item_id'] = ['required_with:items', 'integer'];
+        $rules['items.*.quantity'] = ['required_with:items', 'integer', 'min:1'];
+        $rules['items.*.price'] = ['required_with:items', 'numeric', 'min:0'];
+
+        return $rules;
+    }
+
+    /**
+     * Custom validation messages.
+     */
+    public function messages(): array
+    {
+        return [
+            'items.required' => 'Ketika status pengerjaan selesai, wajib menambahkan minimal 1 item (layanan jasa atau suku cadang).',
+            'items.min' => 'Ketika status pengerjaan selesai, wajib menambahkan minimal 1 item (layanan jasa atau suku cadang).',
         ];
     }
 }

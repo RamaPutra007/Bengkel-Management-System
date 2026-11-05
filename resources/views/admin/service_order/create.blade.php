@@ -99,6 +99,7 @@
                         <span class="w-6 h-6 rounded-full bg-[#FF6B00] text-white text-xs font-bold flex items-center justify-center">3</span>
                         <span>Rincian Pengerjaan & Suku Cadang</span>
                     </h3>
+                    <span class="text-xs text-slate-400 font-medium hidden sm:inline">Opsional (Wajib jika status Selesai)</span>
                 </div>
                 <div class="p-4 sm:p-6">
                     
@@ -263,7 +264,7 @@
                     </div>
                     
                     @error('items')
-                        <p class="text-sm text-red-500 mb-4">Minimal harus ada 1 item (Jasa / Sparepart) untuk membuat Service Order.</p>
+                        <p class="text-sm text-red-500 mb-4">{{ $message }}</p>
                     @enderror
 
                     <div>
@@ -535,10 +536,12 @@
             };
 
             window.validateOrderForm = function(e) {
+                const statusEl = document.getElementById('status');
+                const status = statusEl ? statusEl.value : 'pending';
                 const count = document.querySelectorAll('.item-subtotal-input').length;
-                if (count === 0) {
+                if (status === 'completed' && count === 0) {
                     if (e) e.preventDefault();
-                    alert('Silakan tambahkan minimal 1 item (Jasa atau Suku Cadang) sebelum menyimpan.');
+                    alert('Ketika status diset "Selesai (Completed)", wajib menambahkan minimal 1 item (Jasa atau Suku Cadang).');
                     return false;
                 }
                 return true;
