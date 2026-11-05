@@ -11,9 +11,8 @@ return [
     |
     */
 
-    'api_key' => env('KIPAY_API_KEY', ''),
+    'api_key' => env('KIPAY_API_KEY', 'qpg_pub_wECkxNn7oCDosZl_GPczDLTnQLB8JZAi'),
     'webhook_secret' => env('KIPAY_WEBHOOK_SECRET', ''),
     'base_url' => env('KIPAY_BASE_URL', 'https://api.kipay.id'),
     'mode' => env('KIPAY_MODE', 'sandbox'), // 'sandbox' or 'production'
 ];
-
