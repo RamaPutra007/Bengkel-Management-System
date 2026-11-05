@@ -234,4 +234,62 @@ class ServiceOrderManagementTest extends TestCase
         $response->assertRedirect(route('admin.service-order.show', $completedOrder->id));
         $response->assertSessionHas('warning');
     }
+
+    public function test_service_order_create_view_renders_dual_pc_and_mobile_elements()
+    {
+        $response = $this->actingAs($this->admin)->get(route('admin.service-order.create'));
+        $response->assertStatus(200);
+        // PC elements
+        $response->assertSee('hidden md:table-header-group', false);
+        $response->assertSee('hidden md:table-footer-group', false);
+        // Mobile elements
+        $response->assertSee('mobile-grand-total');
+        $response->assertSee('fixed bottom-0', false);
+    }
+
+    public function test_service_order_edit_view_renders_dual_pc_and_mobile_elements()
+    {
+        $order = ServiceOrder::create([
+            'order_number' => 'SO-EDIT-001',
+            'customer_id' => $this->customer->id,
+            'vehicle_id' => $this->vehicle->id,
+            'mechanic_id' => $this->mechanic->id,
+            'status' => 'pending',
+            'total_price' => 75000,
+        ]);
+
+        $order->items()->create([
+            'type' => 'service',
+            'service_id' => $this->service->id,
+            'item_name' => $this->service->name,
+            'price' => 75000,
+            'quantity' => 1,
+            'subtotal' => 75000,
+        ]);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.service-order.edit', $order->id));
+        $response->assertStatus(200);
+        // Check dual PC vs mobile elements
+        $response->assertSee('hidden md:table-header-group', false);
+        $response->assertSee('mobile-grand-total');
+        $response->assertSee('fixed bottom-0', false);
+        $response->assertSee('Simpan Perubahan');
+    }
+
+    public function test_service_master_views_render_successfully()
+    {
+        // Index
+        $resIndex = $this->actingAs($this->admin)->get(route('admin.service.index'));
+        $resIndex->assertStatus(200);
+
+        // Create
+        $resCreate = $this->actingAs($this->admin)->get(route('admin.service.create'));
+        $resCreate->assertStatus(200);
+        $resCreate->assertSee('Simpan Layanan');
+
+        // Edit
+        $resEdit = $this->actingAs($this->admin)->get(route('admin.service.edit', $this->service->id));
+        $resEdit->assertStatus(200);
+        $resEdit->assertSee('Simpan Perubahan');
+    }
 }
