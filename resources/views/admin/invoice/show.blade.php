@@ -10,13 +10,6 @@
                 </h2>
             </div>
             @if($invoice->payment_status === 'paid')
-            <div>
-                <a href="{{ route('admin.invoice.print', $invoice->id) }}" target="_blank" class="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors font-medium text-sm flex items-center gap-2 shadow-sm">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                    Cetak Nota
-                </a>
-            </div>
-            @endif
         </div>
     </x-slot>
 
@@ -305,9 +298,8 @@
             </div>
             @endif
 
-            <!-- Invoice Document Paper (Hanya Muncul Resmi Ketika Sudah Pembayaran Selesai) -->
-            @if($invoice->payment_status === 'paid')
-            <div class="bg-white overflow-hidden shadow-sm border border-slate-200 printable-area rounded-2xl" id="invoice-doc">
+            <!-- Invoice Document Paper -->
+            <div class="bg-white overflow-hidden shadow-sm border border-slate-200 printable-area" id="invoice-doc">
                 <div class="p-10">
                     
                     <!-- Header Invoice -->
@@ -329,7 +321,11 @@
                             <p class="text-slate-500 text-sm mt-1">Tanggal: {{ $invoice->created_at->format('d M Y') }}</p>
                             
                             <div class="mt-4">
-                                <span class="inline-block px-4 py-1.5 border-2 border-emerald-500 text-emerald-600 font-black text-lg tracking-widest rounded rotate-[-5deg] bg-white">LUNAS</span>
+                                @if($invoice->payment_status === 'paid')
+                                    <span class="inline-block px-4 py-1.5 border-2 border-emerald-500 text-emerald-600 font-black text-lg tracking-widest rounded rotate-[-5deg] bg-white">LUNAS</span>
+                                @else
+                                    <span class="inline-block px-4 py-1.5 border-2 border-rose-500 text-rose-600 font-black text-lg tracking-widest rounded rotate-[-5deg] bg-white">BELUM LUNAS</span>
+                                @endif
                             </div>
                         </div>
                     </div>
@@ -384,18 +380,20 @@
                                 <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Catatan Tambahan</p>
                                 <p class="text-slate-600 text-sm italic">{{ $invoice->notes }}</p>
                             @endif
-                            <div class="mt-4 p-4 bg-emerald-50 rounded-lg border border-emerald-100 text-sm">
-                                <span class="font-bold text-emerald-800 block mb-1">Informasi Pembayaran:</span>
-                                Metode: <span class="capitalize">{{ $invoice->payment_method }}</span>
-                                @if($invoice->kipay_provider)
-                                    ({{ strtoupper($invoice->kipay_provider) }})
-                                @endif
-                                <br>
-                                Tanggal: {{ $invoice->paid_at ? $invoice->paid_at->format('d M Y, H:i') : '-' }}<br>
-                                @if($invoice->kipay_trx_id)
-                                    ID KiPay: <span class="font-mono text-xs">{{ $invoice->kipay_trx_id }}</span>
-                                @endif
-                            </div>
+                            @if($invoice->payment_status === 'paid')
+                                <div class="mt-4 p-4 bg-emerald-50 rounded-lg border border-emerald-100 text-sm">
+                                    <span class="font-bold text-emerald-800 block mb-1">Informasi Pembayaran:</span>
+                                    Metode: <span class="capitalize">{{ $invoice->payment_method }}</span>
+                                    @if($invoice->kipay_provider)
+                                        ({{ strtoupper($invoice->kipay_provider) }})
+                                    @endif
+                                    <br>
+                                    Tanggal: {{ $invoice->paid_at ? $invoice->paid_at->format('d M Y, H:i') : '-' }}<br>
+                                    @if($invoice->kipay_trx_id)
+                                        ID KiPay: <span class="font-mono text-xs">{{ $invoice->kipay_trx_id }}</span>
+                                    @endif
+                                </div>
+                            @endif
                         </div>
                         <div class="w-full md:w-1/2 md:w-72">
                             <div class="space-y-3 text-sm">
@@ -431,61 +429,9 @@
 
                 </div>
             </div>
-            @else
-            <!-- Saat Belum Lunas: Tampilkan Rincian Tagihan yang Rapi & Ringkas (Collapsible) -->
-            <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-                <details class="group">
-                    <summary class="cursor-pointer p-5 font-bold text-slate-800 flex justify-between items-center list-none select-none hover:bg-slate-50 transition-colors">
-                        <span class="flex items-center gap-2.5 text-sm">
-                            <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                            <span>Rincian Item Tagihan & Estimasi Biaya ({{ $invoice->serviceOrder->items->count() }} item)</span>
-                        </span>
-                        <span class="text-xs text-[#FF6B00] font-bold group-open:hidden">
-                            Lihat Rincian ▼
-                        </span>
-                        <span class="text-xs text-slate-400 font-bold hidden group-open:inline">
-                            Tutup Rincian ▲
-                        </span>
-                    </summary>
-                    <div class="p-6 border-t border-slate-100 bg-slate-50/50 space-y-4">
-                        <div class="border border-slate-200 rounded-lg overflow-hidden bg-white">
-                            <table class="w-full text-left text-xs">
-                                <thead class="bg-slate-100 border-b border-slate-200">
-                                    <tr>
-                                        <th class="py-2.5 px-3 font-bold text-slate-600 uppercase">Deskripsi Item</th>
-                                        <th class="py-2.5 px-3 font-bold text-slate-600 uppercase text-right">Harga</th>
-                                        <th class="py-2.5 px-3 font-bold text-slate-600 uppercase text-center w-16">Qty</th>
-                                        <th class="py-2.5 px-3 font-bold text-slate-600 uppercase text-right">Subtotal</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-100">
-                                    @foreach($invoice->serviceOrder->items as $item)
-                                        <tr>
-                                            <td class="py-3 px-3">
-                                                <p class="font-bold text-slate-700">{{ $item->item_name }}</p>
-                                                <p class="text-[10px] text-slate-400 capitalize">{{ $item->type === 'service' ? 'Jasa Servis' : 'Suku Cadang' }}</p>
-                                            </td>
-                                            <td class="py-3 px-3 text-right text-slate-600">Rp {{ number_format($item->price, 0, ',', '.') }}</td>
-                                            <td class="py-3 px-3 text-center font-bold text-slate-700">{{ $item->quantity }}</td>
-                                            <td class="py-3 px-3 text-right font-bold text-slate-800">Rp {{ number_format($item->subtotal, 0, ',', '.') }}</td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                        
-                        <div class="flex flex-col sm:flex-row justify-between items-center text-xs gap-2 pt-1">
-                            <span class="text-slate-500">Subtotal: Rp {{ number_format($invoice->subtotal, 0, ',', '.') }} | Diskon: Rp {{ number_format($invoice->discount, 0, ',', '.') }}</span>
-                            <span class="text-sm font-black text-slate-800">Total Tagihan: <strong class="text-[#FF6B00]">Rp {{ number_format($invoice->grand_total, 0, ',', '.') }}</strong></span>
-                        </div>
-                    </div>
-                </details>
-            </div>
-            @endif
         </div>
 
-        <!-- Fullscreen QRIS Modal for Counter Scan (Hanya Saat Belum Lunas) -->
-        @if($invoice->payment_status !== 'paid')
+        <!-- Fullscreen QRIS Modal for Counter Scan -->
         <div x-show="showQrModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true" @keydown.escape.window="showQrModal = false">
             <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity" @click="showQrModal = false"></div>
 
@@ -543,7 +489,6 @@
                 </div>
             </div>
         </div>
-        @endif
     </div>
 
     <!-- Print Styles -->
