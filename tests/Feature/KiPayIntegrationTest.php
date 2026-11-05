@@ -401,7 +401,7 @@ class KiPayIntegrationTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('KIPAY QRIS RESMI');
         $response->assertSee('Perbesar Layar');
-        $response->assertSee('Kirim WA');
+        $response->assertSee('Bayar Tunai');
         $response->assertSee('https://wa.me/6281234567890?text=', false);
     }
 
