@@ -9,7 +9,6 @@
                     {{ __('Nota / Invoice') }} #{{ $invoice->invoice_number }}
                 </h2>
             </div>
-            @if($invoice->payment_status === 'paid')
         </div>
     </x-slot>
 
