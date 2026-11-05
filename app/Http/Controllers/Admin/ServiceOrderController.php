@@ -169,6 +169,10 @@ class ServiceOrderController extends Controller
     public function edit(string $id)
     {
         $serviceOrder = ServiceOrder::with(['items'])->findOrFail($id);
+        if ($serviceOrder->status === 'completed' || $serviceOrder->status === 'selesai') {
+            return redirect()->route('admin.service-order.show', $serviceOrder->id)
+                ->with('warning', 'Pesanan servis yang sudah berstatus selesai tidak dapat diubah lagi.');
+        }
         $mechanics = Mechanic::where('status', 'active')->orWhere('id', $serviceOrder->mechanic_id)->orderBy('name')->get();
         $services = Service::orderBy('name')->get();
         $spareparts = Sparepart::orderBy('name')->get();
@@ -183,6 +187,11 @@ class ServiceOrderController extends Controller
             
             // Ambil order beserta items di luar blok transaksi untuk mencegah query abort di PgBouncer/Postgres
             $serviceOrder = ServiceOrder::with('items')->findOrFail($id);
+
+            if ($serviceOrder->status === 'completed' || $serviceOrder->status === 'selesai') {
+                return redirect()->route('admin.service-order.show', $serviceOrder->id)
+                    ->with('error', 'Pesanan servis yang sudah berstatus selesai tidak dapat diubah lagi.');
+            }
 
             DB::beginTransaction();
             

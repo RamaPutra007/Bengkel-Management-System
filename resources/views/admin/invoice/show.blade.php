@@ -430,7 +430,8 @@
             </div>
         </div>
 
-        <!-- Fullscreen QRIS Modal for Counter Scan -->
+        <!-- Fullscreen QRIS Modal for Counter Scan (Hanya Saat Belum Lunas) -->
+        @if($invoice->payment_status !== 'paid')
         <div x-show="showQrModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true" @keydown.escape.window="showQrModal = false">
             <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity" @click="showQrModal = false"></div>
 
@@ -488,6 +489,7 @@
                 </div>
             </div>
         </div>
+        @endif
     </div>
 
     <!-- Print Styles -->

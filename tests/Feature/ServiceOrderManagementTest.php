@@ -185,4 +185,53 @@ class ServiceOrderManagementTest extends TestCase
         $response->assertSee('Oli MPX 0.8L');
         $response->assertSee('55.000');
     }
+
+    public function test_completed_service_order_hides_edit_action_in_index_and_detail()
+    {
+        $pendingOrder = ServiceOrder::create([
+            'order_number' => 'SO-PENDING-001',
+            'customer_id' => $this->customer->id,
+            'vehicle_id' => $this->vehicle->id,
+            'mechanic_id' => $this->mechanic->id,
+            'status' => 'pending',
+            'total_price' => 50000,
+        ]);
+
+        $completedOrder = ServiceOrder::create([
+            'order_number' => 'SO-COMPLETED-001',
+            'customer_id' => $this->customer->id,
+            'vehicle_id' => $this->vehicle->id,
+            'mechanic_id' => $this->mechanic->id,
+            'status' => 'completed',
+            'total_price' => 75000,
+        ]);
+
+        $indexResponse = $this->actingAs($this->admin)->get(route('admin.service-order.index'));
+        $indexResponse->assertStatus(200);
+        // Pending order should have edit link
+        $indexResponse->assertSee(route('admin.service-order.edit', $pendingOrder->id));
+        // Completed order should NOT have edit link
+        $indexResponse->assertDontSee(route('admin.service-order.edit', $completedOrder->id));
+
+        // In show view, completed order should not have edit button
+        $showResponse = $this->actingAs($this->admin)->get(route('admin.service-order.show', $completedOrder->id));
+        $showResponse->assertStatus(200);
+        $showResponse->assertDontSee(route('admin.service-order.edit', $completedOrder->id));
+    }
+
+    public function test_completed_service_order_cannot_be_edited_via_route()
+    {
+        $completedOrder = ServiceOrder::create([
+            'order_number' => 'SO-COMPLETED-002',
+            'customer_id' => $this->customer->id,
+            'vehicle_id' => $this->vehicle->id,
+            'mechanic_id' => $this->mechanic->id,
+            'status' => 'completed',
+            'total_price' => 75000,
+        ]);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.service-order.edit', $completedOrder->id));
+        $response->assertRedirect(route('admin.service-order.show', $completedOrder->id));
+        $response->assertSessionHas('warning');
+    }
 }
