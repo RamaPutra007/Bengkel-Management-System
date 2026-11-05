@@ -100,7 +100,51 @@ class InvoiceController extends Controller
         $isKiPayConfigured = $this->kiPayService->isConfigured();
         $kiPayMode = $this->kiPayService->getMode();
 
-        return view('admin.invoice.show', compact('invoice', 'isKiPayConfigured', 'kiPayMode'));
+        $customer = $invoice->serviceOrder->customer ?? null;
+        $waDirectUrl = null;
+        $waCustomerPhone = null;
+
+        if ($customer && $customer->phone) {
+            $rawPhone = preg_replace('/[^0-9]/', '', (string)$customer->phone);
+            if (str_starts_with($rawPhone, '0')) {
+                $waCustomerPhone = '62' . substr($rawPhone, 1);
+            } elseif (str_starts_with($rawPhone, '8')) {
+                $waCustomerPhone = '62' . $rawPhone;
+            } else {
+                $waCustomerPhone = $rawPhone;
+            }
+
+            $checkoutPageUrl = route('checkout.show', $invoice->invoice_number);
+            $totalAmountFormatted = number_format($invoice->kipay_amount ?: $invoice->grand_total, 0, ',', '.');
+            $customerName = $customer->name ?? 'Pelanggan';
+            $vehicleInfo = trim(($invoice->serviceOrder->vehicle->license_plate ?? '') . ' ' . ($invoice->serviceOrder->vehicle->brand ?? '') . ' ' . ($invoice->serviceOrder->vehicle->model ?? ''));
+            $orderNumber = $invoice->serviceOrder->order_number ?? '-';
+
+            $waText = "Halo *{$customerName}* 👋\n\n"
+                    . "*TAGIHAN SERVICE KENDARAAN*\n"
+                    . "*" . config('app.name', 'BengkelPro') . "*\n\n"
+                    . "📋 *No. Invoice:* {$invoice->invoice_number}\n"
+                    . "🔖 *No. Order:* {$orderNumber}\n";
+            if ($vehicleInfo) {
+                $waText .= "🚗 *Kendaraan:* {$vehicleInfo}\n";
+            }
+            $waText .= "💰 *Total Tagihan:* Rp {$totalAmountFormatted}\n\n"
+                    . "Silakan klik link berikut untuk melihat kode QRIS & detail nota pembayaran:\n"
+                    . "👉 {$checkoutPageUrl}\n\n"
+                    . "Setelah pembayaran berhasil dilakukan, sistem kami akan langsung memperbarui status tagihan Anda.\n\n"
+                    . "Terima kasih telah mempercayakan kendaraan Anda kepada kami. 🙏";
+
+            $waDirectUrl = "https://wa.me/{$waCustomerPhone}?text=" . rawurlencode($waText);
+        }
+
+        $isFonnteConnected = false;
+        try {
+            $isFonnteConnected = $this->fonnteService->getStatus();
+        } catch (\Exception $e) {
+            $isFonnteConnected = false;
+        }
+
+        return view('admin.invoice.show', compact('invoice', 'isKiPayConfigured', 'kiPayMode', 'waDirectUrl', 'waCustomerPhone', 'isFonnteConnected'));
     }
 
     public function print(string $id)
@@ -214,19 +258,20 @@ class InvoiceController extends Controller
         $totalPay = $invoice->kipay_amount ?: (int) $invoice->grand_total;
         
         if ($isKiPayUsed && !empty($invoice->kipay_qr_payload)) {
-            $qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . urlencode($invoice->kipay_qr_payload) . "&ext=.png";
+            $qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=" . urlencode($invoice->kipay_qr_payload) . "&ext=.png";
         } else {
             // Fallback
             $staticQris = '00020101021126570011ID.DANA.WWW011893600915303325959802090332595980303UMI51440014ID.CO.QRIS.WWW0215ID10265494495550303UMI5204573253033605802ID5906KOSTKU6013Kota Makassar61059021163048265';
             $dynamicQris = \App\Services\QrisService::generateDynamicQris($staticQris, (int) $invoice->grand_total);
-            $qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . urlencode($dynamicQris) . "&ext=.png";
+            $qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=" . urlencode($dynamicQris) . "&ext=.png";
         }
 
         // 3. Kirim via WhatsApp (Fonnte)
         try {
             $checkoutPageUrl = route('checkout.show', $invoice->invoice_number);
+            $cleanPhone = $this->fonnteService->formatPhoneNumber($customer->phone);
 
-            $response = $this->fonnteService->sendTemplateMessage($customer->phone, 'qris_tagihan', [
+            $response = $this->fonnteService->sendTemplateMessage($cleanPhone, 'qris_tagihan', [
                 'nama' => $customer->name,
                 'nomor_invoice' => $invoice->invoice_number,
                 'nomor_order' => $invoice->serviceOrder->order_number,
@@ -239,10 +284,14 @@ class InvoiceController extends Controller
             if (isset($response['status']) && $response['status']) {
                 return redirect()->route('admin.invoice.show', $invoice->id)->with('success', 'Metode QRIS dipilih' . $kipayNotice . '. Pesan tagihan dan kode QRIS berhasil dikirim ke WhatsApp pelanggan.');
             } else {
-                return redirect()->route('admin.invoice.show', $invoice->id)->with('warning', 'Metode QRIS dibuat' . $kipayNotice . ', namun pesan WhatsApp gagal dikirim: ' . ($response['reason'] ?? $response['detail'] ?? 'Koneksi Fonnte bermasalah.'));
+                $rawReason = $response['reason'] ?? $response['detail'] ?? $response['message'] ?? 'Koneksi Fonnte bermasalah.';
+                if (stripos($rawReason, 'disconnected device') !== false) {
+                    $rawReason = 'WhatsApp Bot Fonnte sedang terputus (disconnected). Gunakan tombol [Kirim via WhatsApp (Web / HP)] untuk kirim langsung ke pelanggan, atau sambungkan kembali bot di menu WhatsApp.';
+                }
+                return redirect()->route('admin.invoice.show', $invoice->id)->with('warning', 'Metode QRIS dibuat' . $kipayNotice . ', namun pesan bot WhatsApp gagal dikirim: ' . $rawReason);
             }
         } catch (\Exception $e) {
-            return redirect()->route('admin.invoice.show', $invoice->id)->with('warning', 'QRIS berhasil dibuat' . $kipayNotice . ', namun pengiriman WhatsApp gagal: ' . $e->getMessage());
+            return redirect()->route('admin.invoice.show', $invoice->id)->with('warning', 'QRIS berhasil dibuat' . $kipayNotice . ', namun pengiriman bot WhatsApp gagal: ' . $e->getMessage() . '. Silakan gunakan tombol [Kirim via WhatsApp (Web / HP)].');
         }
     }
 
@@ -348,7 +397,7 @@ class InvoiceController extends Controller
 
         // Fallback jika direct image fetch gagal: render via qrserver dengan qr_payload
         if (!empty($invoice->kipay_qr_payload)) {
-            return redirect("https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . urlencode($invoice->kipay_qr_payload));
+            return redirect("https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=" . urlencode($invoice->kipay_qr_payload));
         }
 
         abort(404, 'Gambar QR tidak tersedia.');

@@ -357,4 +357,61 @@ class KiPayIntegrationTest extends TestCase
         $response->assertHeader('Content-Type', 'image/png');
         $this->assertEquals('fake-png-binary-data', $response->getContent());
     }
+
+    public function test_invoice_show_displays_enlarged_qris_and_wa_direct_link()
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole('ADMIN');
+
+        $customer = Customer::create([
+            'name' => 'Bambang Sudirman',
+            'phone' => '081234567890',
+        ]);
+
+        $vehicle = Vehicle::create([
+            'customer_id' => $customer->id,
+            'license_plate' => 'B 9999 PRO',
+            'brand' => 'Honda',
+            'model' => 'HRV',
+        ]);
+
+        $serviceOrder = ServiceOrder::create([
+            'order_number' => 'SO-20261105-9999',
+            'customer_id' => $customer->id,
+            'vehicle_id' => $vehicle->id,
+            'status' => 'completed',
+            'entry_date' => now(),
+            'total_price' => 500000,
+        ]);
+
+        $invoice = Invoice::create([
+            'invoice_number' => 'INV-20261105-9999',
+            'service_order_id' => $serviceOrder->id,
+            'subtotal' => 500000,
+            'grand_total' => 500000,
+            'payment_status' => 'unpaid',
+            'payment_method' => 'qris',
+            'kipay_trx_id' => 'SBX-20261105-TESTQR',
+            'kipay_amount' => 500000,
+            'kipay_expired_at' => now()->addMinutes(15),
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.invoice.show', $invoice->id));
+
+        $response->assertStatus(200);
+        $response->assertSee('KIPAY QRIS RESMI');
+        $response->assertSee('Perbesar Layar');
+        $response->assertSee('Kirim WA');
+        $response->assertSee('https://wa.me/6281234567890?text=', false);
+    }
+
+    public function test_fonnte_service_formats_phone_numbers_consistently()
+    {
+        $fonnteService = app(\App\Services\FonnteService::class);
+
+        $this->assertEquals('6281234567890', $fonnteService->formatPhoneNumber('081234567890'));
+        $this->assertEquals('6281234567890', $fonnteService->formatPhoneNumber('0812-3456-7890'));
+        $this->assertEquals('6281234567890', $fonnteService->formatPhoneNumber('+6281234567890'));
+        $this->assertEquals('6281234567890', $fonnteService->formatPhoneNumber('81234567890'));
+    }
 }

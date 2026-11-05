@@ -30,7 +30,7 @@ class FonnteService
         return $config && $config->is_active;
     }
 
-    public function getDeviceInfo()
+    public function getDeviceInfo($timeout = 8)
     {
         $token = $this->getToken();
         if (!$token) {
@@ -41,7 +41,7 @@ class FonnteService
         }
 
         try {
-            $response = Http::timeout(15)->withHeaders([
+            $response = Http::timeout($timeout)->withHeaders([
                 'Authorization' => $token
             ])->post($this->apiUrl . '/device');
 
@@ -63,9 +63,15 @@ class FonnteService
 
     public function getStatus()
     {
-        $info = $this->getDeviceInfo();
-        if (isset($info['device_status'])) {
-            return $info['device_status'] === 'connect';
+        try {
+            $info = \Illuminate\Support\Facades\Cache::remember('fonnte_device_info', 30, function() {
+                return $this->getDeviceInfo(3);
+            });
+            if (isset($info['device_status'])) {
+                return $info['device_status'] === 'connect';
+            }
+        } catch (\Exception $e) {
+            return false;
         }
         return false;
     }
@@ -115,6 +121,18 @@ class FonnteService
         }
     }
 
+    public function formatPhoneNumber($phone)
+    {
+        $clean = preg_replace('/[^0-9]/', '', (string)$phone);
+        if (str_starts_with($clean, '0')) {
+            return '62' . substr($clean, 1);
+        }
+        if (str_starts_with($clean, '8')) {
+            return '62' . $clean;
+        }
+        return $clean;
+    }
+
     public function sendMessage($target, $message)
     {
         if (!$this->isEnabled()) {
@@ -126,18 +144,20 @@ class FonnteService
             return ['status' => false, 'message' => 'Token API belum dikonfigurasi.'];
         }
 
+        $cleanTarget = $this->formatPhoneNumber($target);
+
         try {
             $response = Http::timeout(15)->withHeaders([
                 'Authorization' => $token
             ])->post($this->apiUrl . '/send', [
-                'target' => $target,
+                'target' => $cleanTarget,
                 'message' => $message,
                 'countryCode' => '62',
             ]);
 
             return $response->json();
         } catch (\Exception $e) {
-            return ['status' => false, 'message' => 'Koneksi ke server Fonnte gagal.'];
+            return ['status' => false, 'message' => 'Koneksi ke server Fonnte gagal: ' . $e->getMessage()];
         }
     }
 
@@ -151,9 +171,13 @@ class FonnteService
         }
 
         if ($fileUrl) {
-
-            // Attach file as message caption
-            return $this->sendFile($target, $fileUrl, $message);
+            // Coba kirimkan file/gambar QRIS terlebih dahulu
+            $fileResult = $this->sendFile($target, $fileUrl, $message);
+            if (isset($fileResult['status']) && $fileResult['status']) {
+                return $fileResult;
+            }
+            // Fallback: Jika pengiriman file gagal (misal paket Fonnte Free tidak mendukung attachment), kirimkan via teks biasa
+            \Log::warning('Fonnte sendFile failed, fallback to text sendMessage:', $fileResult ?? []);
         }
 
         return $this->sendMessage($target, $message);
@@ -165,13 +189,21 @@ class FonnteService
             return ['status' => false, 'message' => 'WhatsApp Bot sedang dinonaktifkan.'];
         }
 
+        $token = $this->getToken();
+        if (!$token) {
+            return ['status' => false, 'message' => 'Token API belum dikonfigurasi.'];
+        }
+
+        $cleanTarget = $this->formatPhoneNumber($target);
+
         try {
-            $response = Http::withHeaders([
-                'Authorization' => $this->getToken(),
+            $response = Http::timeout(20)->withHeaders([
+                'Authorization' => $token,
             ])->post($this->apiUrl . '/send', [
-                'target' => $target,
+                'target' => $cleanTarget,
                 'message' => $message,
                 'url' => $fileUrl,
+                'countryCode' => '62',
             ]);
 
             return $response->json();

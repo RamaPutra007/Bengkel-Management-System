@@ -93,25 +93,25 @@
                     </p>
 
                     <!-- Protected QR Image Container using internal route -->
-                    <div class="inline-block p-4 bg-white border-2 border-dashed border-orange-300 rounded-2xl shadow-sm mb-4 relative">
+                    <div class="inline-block p-4 bg-white border-2 border-dashed border-orange-300 rounded-3xl shadow-sm mb-3 relative">
                         @if($invoice->kipay_trx_id)
                             <img
                                 src="{{ route('checkout.qr', $invoice->kipay_trx_id) }}"
-                                width="250"
-                                height="250"
-                                class="mx-auto rounded-lg"
+                                width="280"
+                                height="280"
+                                class="w-64 h-64 sm:w-72 sm:h-72 mx-auto rounded-xl object-contain"
                                 alt="QRIS untuk {{ $invoice->invoice_number }}"
                             />
                         @elseif(!empty($invoice->kipay_qr_payload))
                             <img
-                                src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={{ urlencode($invoice->kipay_qr_payload) }}"
-                                width="250"
-                                height="250"
-                                class="mx-auto rounded-lg"
+                                src="https://api.qrserver.com/v1/create-qr-code/?size=500x500&data={{ urlencode($invoice->kipay_qr_payload) }}"
+                                width="280"
+                                height="280"
+                                class="w-64 h-64 sm:w-72 sm:h-72 mx-auto rounded-xl object-contain"
                                 alt="QRIS untuk {{ $invoice->invoice_number }}"
                             />
                         @else
-                            <div class="w-60 h-60 flex items-center justify-center text-xs text-slate-400">
+                            <div class="w-64 h-64 flex items-center justify-center text-xs text-slate-400">
                                 QRIS sedang dipersiapkan...
                             </div>
                         @endif
@@ -121,6 +121,15 @@
                             Otomatis Terverifikasi
                         </div>
                     </div>
+
+                    @if($invoice->kipay_trx_id)
+                    <div class="mt-3 flex justify-center">
+                        <a href="{{ route('checkout.qr', $invoice->kipay_trx_id) }}" download="qris-{{ $invoice->invoice_number }}.png" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
+                            <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            <span>Simpan / Unduh QRIS</span>
+                        </a>
+                    </div>
+                    @endif
 
                     @if($invoice->kipay_expired_at)
                         <p class="text-xs text-slate-400 mt-2">
