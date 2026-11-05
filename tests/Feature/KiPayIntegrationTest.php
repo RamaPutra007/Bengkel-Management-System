@@ -340,6 +340,21 @@ class KiPayIntegrationTest extends TestCase
             'is_paid' => false,
             'payment_status' => 'unpaid',
         ]);
+
+        // 3. When invoice is paid, customer checkout shows official invoice document with LUNAS stamp
+        $invoice->update([
+            'payment_status' => 'paid',
+            'payment_method' => 'qris',
+            'kipay_provider' => 'SHOPEEPAY',
+            'paid_at' => now(),
+        ]);
+
+        $paidPageResponse = $this->get(route('checkout.show', $invoice->invoice_number));
+        $paidPageResponse->assertStatus(200);
+        $paidPageResponse->assertSee('LUNAS');
+        $paidPageResponse->assertSee('id="invoice-doc"', false);
+        $paidPageResponse->assertSee('SHOPEEPAY');
+        $paidPageResponse->assertSee('Cetak / Simpan Nota');
     }
 
     public function test_internal_checkout_qr_route_protects_credentials()
@@ -403,6 +418,21 @@ class KiPayIntegrationTest extends TestCase
         $response->assertSee('Perbesar Layar');
         $response->assertSee('Bayar Tunai');
         $response->assertSee('https://wa.me/6281234567890?text=', false);
+
+        // When invoice is paid, QRIS standee is hidden and official invoice-doc with LUNAS stamp appears
+        $invoice->update([
+            'payment_status' => 'paid',
+            'payment_method' => 'qris',
+            'kipay_provider' => 'SHOPEEPAY',
+            'paid_at' => now(),
+        ]);
+
+        $paidResponse = $this->actingAs($admin)->get(route('admin.invoice.show', $invoice->id));
+        $paidResponse->assertStatus(200);
+        $paidResponse->assertSee('LUNAS');
+        $paidResponse->assertSee('id="invoice-doc"', false);
+        $paidResponse->assertSee('SHOPEEPAY');
+        $paidResponse->assertDontSee('KIPAY QRIS RESMI');
     }
 
     public function test_fonnte_service_formats_phone_numbers_consistently()
