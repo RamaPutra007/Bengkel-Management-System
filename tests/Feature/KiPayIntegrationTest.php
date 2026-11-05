@@ -418,6 +418,8 @@ class KiPayIntegrationTest extends TestCase
         $response->assertSee('Perbesar Layar');
         $response->assertSee('Bayar Tunai');
         $response->assertSee('https://wa.me/6281234567890?text=', false);
+        // When unpaid, the invoice document paper below is hidden
+        $response->assertDontSee('id="invoice-doc"', false);
 
         // When invoice is paid, QRIS standee is hidden and official invoice-doc with LUNAS stamp appears
         $invoice->update([

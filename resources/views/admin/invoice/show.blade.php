@@ -297,7 +297,8 @@
             </div>
             @endif
 
-            <!-- Invoice Document Paper -->
+            <!-- Invoice Document Paper (Hanya muncul ketika SUDAH melakukan pembayaran / Lunas) -->
+            @if($invoice->payment_status === 'paid')
             <div class="bg-white overflow-hidden shadow-sm border border-slate-200 printable-area" id="invoice-doc">
                 <div class="p-10">
                     
@@ -428,6 +429,7 @@
 
                 </div>
             </div>
+            @endif
         </div>
 
         <!-- Fullscreen QRIS Modal for Counter Scan (Hanya Saat Belum Lunas) -->
