@@ -29,13 +29,22 @@ class KiPayService
         $config = $this->getConfig();
         if ($config && !empty($config->api_key)) {
             try {
-                return Crypt::decryptString($config->api_key);
+                $decrypted = Crypt::decryptString($config->api_key);
             } catch (\Exception $e) {
-                return $config->api_key;
+                $decrypted = $config->api_key;
+            }
+
+            if (!empty($decrypted) && !str_contains($decrypted, '*')) {
+                return trim($decrypted);
             }
         }
 
-        return config('kipay.api_key');
+        $envKey = config('kipay.api_key');
+        if (!empty($envKey) && !str_contains($envKey, '*')) {
+            return trim($envKey);
+        }
+
+        return null;
     }
 
     /**
@@ -46,13 +55,22 @@ class KiPayService
         $config = $this->getConfig();
         if ($config && !empty($config->webhook_secret)) {
             try {
-                return Crypt::decryptString($config->webhook_secret);
+                $decrypted = Crypt::decryptString($config->webhook_secret);
             } catch (\Exception $e) {
-                return $config->webhook_secret;
+                $decrypted = $config->webhook_secret;
+            }
+
+            if (!empty($decrypted) && !str_contains($decrypted, '*')) {
+                return trim($decrypted);
             }
         }
 
-        return config('kipay.webhook_secret');
+        $envSecret = config('kipay.webhook_secret');
+        if (!empty($envSecret) && !str_contains($envSecret, '*')) {
+            return trim($envSecret);
+        }
+
+        return null;
     }
 
     /**
@@ -102,6 +120,22 @@ class KiPayService
             ];
         }
 
+        if ($amount < 1000) {
+            return [
+                'success' => false,
+                'status' => 400,
+                'message' => 'Nominal tagihan (Rp ' . number_format($amount, 0, ',', '.') . ') di bawah batas minimum QRIS KiPay (minimal Rp 1.000).',
+            ];
+        }
+
+        if ($amount > 100000000) {
+            return [
+                'success' => false,
+                'status' => 400,
+                'message' => 'Nominal tagihan (Rp ' . number_format($amount, 0, ',', '.') . ') di atas batas maksimum QRIS KiPay (maksimal Rp 100.000.000).',
+            ];
+        }
+
         $url = "{$this->getBaseUrl()}/api/pay/{$apiKey}/transactions";
 
         try {
@@ -128,10 +162,15 @@ class KiPayService
                 'url' => $url,
             ]);
 
+            $errorMsg = $response->json('error') ?? $response->json('message') ?? $response->json('detail');
+            if ($response->status() === 404 && (empty($errorMsg) || str_contains($errorMsg, 'Project tidak ditemukan'))) {
+                $errorMsg = 'Project KiPay tidak ditemukan (HTTP 404). Pastikan API Key di menu Pengaturan KiPay sesuai dengan dashboard KiPay.';
+            }
+
             return [
                 'success' => false,
                 'status' => $response->status(),
-                'message' => $response->json('message') ?? 'Gagal membuat transaksi di KiPay (HTTP ' . $response->status() . ')',
+                'message' => $errorMsg ?? 'Gagal membuat transaksi di KiPay (HTTP ' . $response->status() . ')',
                 'body' => $response->json() ?? $response->body(),
             ];
         } catch (\Exception $e) {
