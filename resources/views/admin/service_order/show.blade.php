@@ -1,6 +1,6 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex items-center justify-between">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div class="flex items-center gap-4">
                 <a href="{{ route('admin.service-order.index') }}" class="text-slate-400 hover:text-[#FF6B00] transition-colors">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
@@ -9,7 +9,7 @@
                     {{ __('Detail Transaksi') }}
                 </h2>
             </div>
-            <div class="flex gap-2">
+            <div class="flex flex-wrap items-center gap-2">
                 @if(!$serviceOrder->inspection)
                     <a href="{{ route('admin.inspection.create', ['service_order_id' => $serviceOrder->id]) }}" class="px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors font-medium text-sm flex items-center gap-2">
                         Buat Laporan Inspeksi
@@ -39,7 +39,7 @@
 
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-2xl border border-slate-100">
                 <!-- Header Info -->
-                <div class="p-8 border-b border-slate-100">
+                <div class="p-5 sm:p-8 border-b border-slate-100">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div>
                             <p class="text-sm font-medium text-slate-500 mb-1">Nomor Pesanan (Order Number)</p>
