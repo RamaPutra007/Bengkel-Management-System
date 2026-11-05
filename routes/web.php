@@ -47,6 +47,7 @@ Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->grou
     Route::resource('customer', \App\Http\Controllers\Admin\CustomerController::class);
     Route::get('/customer-vehicles/{customer}', [\App\Http\Controllers\Admin\ServiceOrderController::class, 'getCustomerVehicles'])->name('api.customer.vehicles');
     Route::resource('vehicle', \App\Http\Controllers\Admin\VehicleController::class);
+    Route::patch('service-order/{id}/status', [\App\Http\Controllers\Admin\ServiceOrderController::class, 'updateStatus'])->name('service-order.update-status');
     Route::resource('service-order', \App\Http\Controllers\Admin\ServiceOrderController::class);
     Route::resource('inspection', \App\Http\Controllers\Admin\InspectionController::class);
     Route::resource('service', \App\Http\Controllers\Admin\ServiceController::class);

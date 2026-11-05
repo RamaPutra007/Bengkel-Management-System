@@ -433,4 +433,106 @@ class ServiceOrderManagementTest extends TestCase
         $this->assertEquals('completed', $order->status);
         $this->assertEquals($this->service->price, $order->total_price);
     }
+
+    public function test_can_directly_update_status_from_show_to_in_progress()
+    {
+        $order = ServiceOrder::create([
+            'order_number' => 'SO-DIRECT-001',
+            'customer_id' => $this->customer->id,
+            'vehicle_id' => $this->vehicle->id,
+            'status' => 'pending',
+            'total_price' => 0,
+        ]);
+
+        // Show page has the direct status form
+        $showRes = $this->actingAs($this->admin)->get(route('admin.service-order.show', $order->id));
+        $showRes->assertStatus(200);
+        $showRes->assertSee(route('admin.service-order.update-status', $order->id));
+
+        // Submit status update to in_progress
+        $response = $this->actingAs($this->admin)->patch(route('admin.service-order.update-status', $order->id), [
+            'status' => 'in_progress',
+        ]);
+
+        $response->assertRedirect(route('admin.service-order.show', $order->id));
+        $response->assertSessionHas('success');
+
+        $order->refresh();
+        $this->assertEquals('in_progress', $order->status);
+    }
+
+    public function test_cannot_directly_update_status_to_completed_from_show_if_no_items()
+    {
+        $order = ServiceOrder::create([
+            'order_number' => 'SO-DIRECT-002',
+            'customer_id' => $this->customer->id,
+            'vehicle_id' => $this->vehicle->id,
+            'status' => 'in_progress',
+            'total_price' => 0,
+        ]);
+
+        $response = $this->actingAs($this->admin)->patch(route('admin.service-order.update-status', $order->id), [
+            'status' => 'completed',
+        ]);
+
+        $response->assertRedirect(route('admin.service-order.show', $order->id));
+        $response->assertSessionHas('error');
+
+        $order->refresh();
+        $this->assertEquals('in_progress', $order->status);
+    }
+
+    public function test_can_directly_update_status_to_completed_from_show_if_has_items()
+    {
+        $order = ServiceOrder::create([
+            'order_number' => 'SO-DIRECT-003',
+            'customer_id' => $this->customer->id,
+            'vehicle_id' => $this->vehicle->id,
+            'status' => 'in_progress',
+            'total_price' => 75000,
+        ]);
+
+        $order->items()->create([
+            'type' => 'service',
+            'service_id' => $this->service->id,
+            'item_name' => $this->service->name,
+            'quantity' => 1,
+            'price' => 75000,
+            'subtotal' => 75000,
+        ]);
+
+        $response = $this->actingAs($this->admin)->patch(route('admin.service-order.update-status', $order->id), [
+            'status' => 'completed',
+        ]);
+
+        $response->assertRedirect(route('admin.service-order.show', $order->id));
+        $response->assertSessionHas('success');
+
+        $order->refresh();
+        $this->assertEquals('completed', $order->status);
+
+        // Once completed, show page shows locked badge and hides direct update form
+        $showRes = $this->actingAs($this->admin)->get(route('admin.service-order.show', $order->id));
+        $showRes->assertStatus(200);
+        $showRes->assertDontSee(route('admin.service-order.update-status', $order->id));
+        $showRes->assertSee('Selesai (Completed)');
+    }
+
+    public function test_cannot_directly_update_status_if_order_already_completed()
+    {
+        $order = ServiceOrder::create([
+            'order_number' => 'SO-DIRECT-004',
+            'customer_id' => $this->customer->id,
+            'vehicle_id' => $this->vehicle->id,
+            'status' => 'completed',
+            'total_price' => 75000,
+        ]);
+
+        $response = $this->actingAs($this->admin)->patch(route('admin.service-order.update-status', $order->id), [
+            'status' => 'in_progress',
+        ]);
+
+        $response->assertRedirect(route('admin.service-order.show', $order->id));
+        $response->assertSessionHas('error');
+    }
 }

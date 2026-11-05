@@ -317,6 +317,92 @@ class ServiceOrderController extends Controller
         }
     }
 
+    public function updateStatus(Request $request, string $id)
+    {
+        $serviceOrder = ServiceOrder::with(['customer', 'vehicle', 'items.service', 'items.sparepart'])->findOrFail($id);
+
+        if ($serviceOrder->status === 'completed' || $serviceOrder->status === 'selesai') {
+            return redirect()->route('admin.service-order.show', $serviceOrder->id)
+                ->with('error', 'Pesanan servis yang sudah berstatus selesai tidak dapat diubah lagi.');
+        }
+
+        $validated = $request->validate([
+            'status' => 'required|in:pending,in_progress,completed,cancelled',
+        ]);
+
+        $newStatus = $validated['status'];
+
+        if ($newStatus === 'completed' && $serviceOrder->items->count() === 0) {
+            return redirect()->route('admin.service-order.show', $serviceOrder->id)
+                ->with('error', 'Gagal mengubah ke status Selesai: Pesanan belum memiliki item jasa atau suku cadang. Silakan tambahkan item terlebih dahulu melalui menu Edit.');
+        }
+
+        // If status changed to cancelled, restore any sparepart stock
+        if ($newStatus === 'cancelled' && $serviceOrder->status !== 'cancelled') {
+            foreach ($serviceOrder->items as $item) {
+                if ($item->type === 'sparepart' && $item->sparepart_id) {
+                    $sparepart = Sparepart::find($item->sparepart_id);
+                    if ($sparepart) {
+                        $sparepart->increment('stock', $item->quantity);
+                        \App\Models\InventoryTransaction::where('sparepart_id', $sparepart->id)
+                            ->where('type', 'out')
+                            ->where('notes', 'like', '%Service Order #' . $serviceOrder->id . '%')
+                            ->delete();
+                    }
+                }
+            }
+        }
+
+        $oldStatus = $serviceOrder->status;
+        $serviceOrder->update(['status' => $newStatus]);
+
+        // Kirim notifikasi WhatsApp jika status berubah
+        try {
+            $fonnte = app(\App\Services\FonnteService::class);
+            $customer = $serviceOrder->customer;
+            $vehicle = $serviceOrder->vehicle;
+
+            if ($customer && $customer->phone && $oldStatus !== $newStatus) {
+                $servicesStr = $serviceOrder->items->where('type', 'service')->map(function($item) {
+                    return '- ' . ($item->service?->name ?? $item->item_name);
+                })->implode("\n");
+                if (empty($servicesStr)) $servicesStr = '-';
+
+                $commonVars = [
+                    'nama' => $customer->name,
+                    'nomor_order' => $serviceOrder->order_number,
+                    'kendaraan' => $vehicle ? ($vehicle->brand . ' ' . $vehicle->model) : '-',
+                    'plat_nomor' => $vehicle ? $vehicle->license_plate : '-',
+                    'nama_bengkel' => config('app.name', 'Bengkel')
+                ];
+
+                if ($newStatus === 'in_progress') {
+                    $fonnte->sendTemplateMessage($customer->phone, 'diproses', array_merge($commonVars, [
+                        'layanan' => $servicesStr,
+                    ]));
+                } elseif ($newStatus === 'completed') {
+                    $fonnte->sendTemplateMessage($customer->phone, 'siap_diambil', array_merge($commonVars, [
+                        'layanan' => $servicesStr,
+                        'total' => number_format($serviceOrder->total_price, 0, ',', '.'),
+                    ]));
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::error('Gagal mengirim WhatsApp (Update Status): ' . $e->getMessage());
+        }
+
+        $statusLabels = [
+            'pending' => 'Menunggu (Pending)',
+            'in_progress' => 'Sedang Dikerjakan (In Progress)',
+            'completed' => 'Selesai (Completed)',
+            'cancelled' => 'Dibatalkan (Cancelled)',
+        ];
+        $label = $statusLabels[$newStatus] ?? $newStatus;
+
+        return redirect()->route('admin.service-order.show', $serviceOrder->id)
+            ->with('success', "Status pesanan berhasil diperbarui menjadi {$label}.");
+    }
+
     public function destroy(string $id)
     {
         $serviceOrder = ServiceOrder::findOrFail($id);
