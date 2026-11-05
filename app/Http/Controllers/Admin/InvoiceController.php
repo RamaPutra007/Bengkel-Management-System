@@ -341,8 +341,9 @@ class InvoiceController extends Controller
     {
         $invoice = Invoice::findOrFail($id);
 
-        // Jika belum ada trx_id KiPay, buat transaksinya terlebih dahulu
-        if (!$invoice->kipay_trx_id) {
+        // Jika belum ada trx_id KiPay atau sudah expired, buat transaksinya terlebih dahulu
+        $isExpired = $invoice->kipay_expired_at && $invoice->kipay_expired_at->isPast();
+        if (!$invoice->kipay_trx_id || $isExpired) {
             $trxResult = $this->kiPayService->createTransaction((int) $invoice->grand_total, $invoice->invoice_number);
             if ($trxResult['success'] && isset($trxResult['data'])) {
                 $d = $trxResult['data'];
@@ -361,6 +362,23 @@ class InvoiceController extends Controller
         }
 
         $simResult = $this->kiPayService->simulatePayment($invoice->kipay_trx_id, 'shopeepay');
+
+        // Jika gagal karena transaksi expired di server KiPay, buat transaksi baru dan coba ulang sekali lagi
+        if (!$simResult['success'] && isset($simResult['message']) && stripos($simResult['message'], 'expired') !== false) {
+            $trxResult = $this->kiPayService->createTransaction((int) $invoice->grand_total, $invoice->invoice_number);
+            if ($trxResult['success'] && isset($trxResult['data'])) {
+                $d = $trxResult['data'];
+                $invoice->update([
+                    'kipay_trx_id' => $d['trx_id'],
+                    'kipay_qr_url' => $d['qr_url'] ?? null,
+                    'kipay_qr_payload' => $d['qr_payload'] ?? null,
+                    'kipay_amount' => $d['amount'] ?? $invoice->grand_total,
+                    'kipay_fee' => $d['fee_amount'] ?? 0,
+                    'kipay_expired_at' => isset($d['expires_at']) ? Carbon::parse($d['expires_at']) : now()->addMinutes(15),
+                ]);
+                $simResult = $this->kiPayService->simulatePayment($invoice->kipay_trx_id, 'shopeepay');
+            }
+        }
 
         if (!$simResult['success']) {
             return redirect()->route('admin.invoice.show', $invoice->id)->with('error', 'Gagal menjalankan simulasi KiPay: ' . ($simResult['message'] ?? 'Error'));

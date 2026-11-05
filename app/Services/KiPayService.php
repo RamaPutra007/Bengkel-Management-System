@@ -305,10 +305,15 @@ class KiPayService
                 ];
             }
 
+            $errMsg = $response->json('error') 
+                   ?? $response->json('message') 
+                   ?? $response->json('detail') 
+                   ?? 'Gagal menjalankan simulasi pembayaran KiPay.';
+
             return [
                 'success' => false,
                 'status' => $response->status(),
-                'message' => $response->json('message') ?? 'Gagal menjalankan simulasi pembayaran KiPay.',
+                'message' => $errMsg,
                 'body' => $response->json(),
             ];
         } catch (\Exception $e) {

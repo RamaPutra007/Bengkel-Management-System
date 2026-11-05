@@ -414,4 +414,57 @@ class KiPayIntegrationTest extends TestCase
         $this->assertEquals('6281234567890', $fonnteService->formatPhoneNumber('+6281234567890'));
         $this->assertEquals('6281234567890', $fonnteService->formatPhoneNumber('81234567890'));
     }
+
+    public function test_simulate_kipay_auto_renews_expired_transaction()
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole('ADMIN');
+
+        $customer = Customer::create(['name' => 'Doni', 'phone' => '08123456789']);
+        $vehicle = Vehicle::create(['customer_id' => $customer->id, 'license_plate' => 'B 1234 DON', 'brand' => 'Honda', 'model' => 'Beat']);
+        $serviceOrder = ServiceOrder::create([
+            'order_number' => 'SO-SIM-001',
+            'customer_id' => $customer->id,
+            'vehicle_id' => $vehicle->id,
+            'status' => 'completed',
+            'entry_date' => now(),
+            'total_price' => 150000,
+        ]);
+        $invoice = Invoice::create([
+            'invoice_number' => 'INV-SIM-001',
+            'service_order_id' => $serviceOrder->id,
+            'subtotal' => 150000,
+            'grand_total' => 150000,
+            'payment_status' => 'unpaid',
+            'kipay_trx_id' => 'SBX-OLD-EXPIRED',
+            'kipay_expired_at' => now()->subMinutes(10), // expired 10 minutes ago
+        ]);
+
+        config(['kipay.api_key' => 'apg_sandbox_test']);
+
+        Http::fake([
+            'https://api.kipay.id/api/pay/*/transactions' => Http::response([
+                'success' => true,
+                'trx_id' => 'SBX-NEW-RENEWED',
+                'amount' => 150000,
+                'qr_url' => 'https://api.kipay.id/qr/test.png',
+                'qr_payload' => '000201...',
+                'expires_at' => now()->addMinutes(15)->toIso8601String(),
+            ], 201),
+            'https://api.kipay.id/api/pay/*/transactions/SBX-NEW-RENEWED/simulate' => Http::response([
+                'status' => 'paid',
+                'provider' => 'shopeepay',
+                'matched_at' => now()->toIso8601String(),
+            ], 200),
+        ]);
+
+        $response = $this->actingAs($admin)->post(route('admin.invoice.simulate-kipay', $invoice->id));
+
+        $response->assertRedirect(route('admin.invoice.show', $invoice->id));
+        $response->assertSessionHas('success');
+
+        $invoice->refresh();
+        $this->assertEquals('paid', $invoice->payment_status);
+        $this->assertEquals('SBX-NEW-RENEWED', $invoice->kipay_trx_id);
+    }
 }

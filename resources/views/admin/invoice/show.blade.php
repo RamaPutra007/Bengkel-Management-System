@@ -52,196 +52,205 @@
                 </div>
             @endif
 
-            <!-- KiPay QRIS Card Section -->
+            <!-- KiPay QRIS Standee Card Section -->
             @if($invoice->payment_method === 'qris' || $invoice->kipay_trx_id)
-            <div class="bg-white rounded-3xl border-2 border-orange-200/80 shadow-md p-6 sm:p-8 overflow-hidden relative">
-                <div class="flex flex-col lg:flex-row items-center lg:items-start gap-8">
+            <div class="space-y-4">
+                <!-- Authentic Indonesian QRIS Standee Card -->
+                <div class="max-w-md mx-auto bg-white rounded-3xl shadow-xl shadow-slate-200/60 border-2 border-slate-200 overflow-hidden relative font-sans">
                     
-                    <!-- Large QR Frame Section -->
-                    <div class="flex flex-col items-center shrink-0">
-                        <div class="relative group cursor-pointer" @click="showQrModal = true" title="Klik untuk memperbesar QRIS ke layar penuh">
-                            <div class="w-64 h-64 sm:w-72 sm:h-72 p-4 bg-white border-2 border-slate-200 rounded-2xl shadow-sm flex items-center justify-center transition-all duration-200 group-hover:border-[#FF6B00] group-hover:shadow-md">
+                    <!-- Official QRIS Red Header -->
+                    <div class="bg-gradient-to-r from-red-600 via-rose-600 to-red-700 text-white px-6 py-4 flex items-center justify-between shadow-sm">
+                        <div class="flex items-center gap-3">
+                            <span class="font-black text-2xl tracking-tighter text-white">QRIS</span>
+                            <div class="h-6 w-px bg-white/30"></div>
+                            <div class="text-[9px] font-bold tracking-widest uppercase leading-tight text-white/95">
+                                PEMBAYARAN DIGITAL<br>NASIONAL
+                            </div>
+                        </div>
+                        <div class="px-2.5 py-1 bg-white/20 backdrop-blur-sm rounded-lg text-[10px] font-black tracking-wider text-white border border-white/30">
+                            GPN
+                        </div>
+                    </div>
+
+                    <!-- Merchant Header Info -->
+                    <div class="px-6 pt-5 pb-3 text-center border-b border-slate-100 bg-slate-50/50">
+                        <h3 class="font-black text-lg text-slate-800 tracking-tight">{{ config('app.name', 'BengkelPro') }}</h3>
+                        <p class="text-xs text-slate-500 font-mono mt-0.5">
+                            Trx ID: <strong class="text-slate-700">{{ $invoice->kipay_trx_id ?? 'Belum ada Trx' }}</strong>
+                        </p>
+                    </div>
+
+                    <!-- BIG QRIS CODE DISPLAY (288px - 320px) -->
+                    <div class="p-6 text-center">
+                        <div class="relative group cursor-pointer inline-block mx-auto" @click="showQrModal = true" title="Klik untuk memperbesar QRIS ke layar penuh">
+                            
+                            <!-- Viewfinder Box with Red Corner Guides -->
+                            <div class="w-72 h-72 sm:w-80 sm:h-80 p-4 bg-white border-2 border-slate-300 rounded-2xl shadow-inner flex items-center justify-center relative transition-all group-hover:border-[#FF6B00] group-hover:shadow-md">
+                                
+                                <!-- Corner Guides -->
+                                <div class="absolute -top-1 -left-1 w-5 h-5 border-t-4 border-l-4 border-red-600 rounded-tl"></div>
+                                <div class="absolute -top-1 -right-1 w-5 h-5 border-t-4 border-r-4 border-red-600 rounded-tr"></div>
+                                <div class="absolute -bottom-1 -left-1 w-5 h-5 border-b-4 border-l-4 border-red-600 rounded-bl"></div>
+                                <div class="absolute -bottom-1 -right-1 w-5 h-5 border-b-4 border-r-4 border-red-600 rounded-br"></div>
+
                                 @if($invoice->kipay_trx_id)
-                                    <img src="{{ route('admin.invoice.kipay-qr', $invoice->id) }}" alt="QRIS KiPay" class="w-full h-full object-contain rounded-lg">
+                                    <img src="{{ route('admin.invoice.kipay-qr', $invoice->id) }}" alt="QRIS KiPay" class="w-full h-full object-contain">
                                 @elseif(!empty($invoice->kipay_qr_payload))
-                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=500x500&data={{ urlencode($invoice->kipay_qr_payload) }}" alt="QRIS Dinamis" class="w-full h-full object-contain rounded-lg">
+                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=500x500&data={{ urlencode($invoice->kipay_qr_payload) }}" alt="QRIS Dinamis" class="w-full h-full object-contain">
                                 @else
-                                    <div class="text-center p-4 text-xs text-slate-400">
+                                    <div class="text-center p-6 text-xs text-slate-400">
                                         QRIS belum dibuat
                                     </div>
                                 @endif
                             </div>
-                            
+
                             <!-- Overlay Hover Pill -->
-                            <div class="absolute inset-0 bg-slate-900/40 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-2 backdrop-blur-[2px]">
+                            <div class="absolute inset-0 bg-slate-900/50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-2 backdrop-blur-[2px]">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
                                 <span>Klik Perbesar Layar Penuh</span>
                             </div>
                         </div>
 
-                        <!-- Action Buttons below QR -->
-                        <div class="flex flex-wrap items-center justify-center gap-2 mt-3">
-                            <button type="button" @click="showQrModal = true" class="px-3 py-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors flex items-center gap-1.5 shadow-sm">
-                                <svg class="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path></svg>
-                                <span>Perbesar Layar</span>
-                            </button>
-                            @if($invoice->kipay_trx_id)
-                            <a href="{{ route('admin.invoice.kipay-qr', $invoice->id) }}" target="_blank" class="px-3 py-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors flex items-center gap-1.5 shadow-sm" title="Buka gambar QR 500x500 piksel di tab baru">
-                                <svg class="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
-                                <span>Buka PNG Asli</span>
-                            </a>
-                            <a href="{{ route('admin.invoice.kipay-qr', $invoice->id) }}" download="qris-{{ $invoice->invoice_number }}.png" class="px-3 py-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors flex items-center gap-1.5 shadow-sm" title="Unduh gambar QRIS">
-                                <svg class="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                                <span>Unduh</span>
-                            </a>
-                            @endif
-                        </div>
-                    </div>
-
-                    <!-- Details & Operations Section -->
-                    <div class="flex-1 w-full space-y-4 text-left">
-                        <!-- Badges -->
-                        <div class="flex flex-wrap items-center gap-2">
-                            <span class="px-3 py-1 rounded-full text-xs font-black bg-[#FF6B00] text-white tracking-wide shadow-sm shadow-orange-500/20">
-                                KIPAY QRIS RESMI
-                            </span>
-                            @if($invoice->payment_status === 'paid')
-                                <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1.5">
-                                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                    LUNAS ({{ strtoupper($invoice->kipay_provider ?? 'QRIS') }})
-                                </span>
-                            @elseif($invoice->kipay_expired_at && $invoice->kipay_expired_at->isPast())
-                                <span class="px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200 flex items-center gap-1.5">
-                                    <span class="w-2 h-2 rounded-full bg-rose-500"></span>
-                                    KADALUARSA (EXPIRED)
-                                </span>
-                            @else
-                                <span class="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1.5">
-                                    <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
-                                    MENUNGGU PEMBAYARAN
-                                </span>
-                            @endif
+                        <!-- Supported Payment Methods -->
+                        <p class="text-[11px] text-slate-500 font-medium mt-3">
+                            Menerima pembayaran dari seluruh aplikasi:
+                        </p>
+                        <div class="flex flex-wrap items-center justify-center gap-1.5 mt-1.5 text-[10px] font-bold text-slate-600">
+                            <span class="px-2 py-0.5 bg-slate-100 rounded">BCA</span>
+                            <span class="px-2 py-0.5 bg-slate-100 rounded">Mandiri</span>
+                            <span class="px-2 py-0.5 bg-slate-100 rounded">BRI</span>
+                            <span class="px-2 py-0.5 bg-slate-100 rounded">BNI</span>
+                            <span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded">GoPay</span>
+                            <span class="px-2 py-0.5 bg-purple-50 text-purple-700 rounded">OVO</span>
+                            <span class="px-2 py-0.5 bg-sky-50 text-sky-700 rounded">DANA</span>
+                            <span class="px-2 py-0.5 bg-orange-50 text-[#FF6B00] rounded">ShopeePay</span>
                         </div>
 
-                        <!-- Total Amount -->
-                        <div class="p-4 bg-orange-50/70 rounded-2xl border border-orange-100">
-                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total Pembayaran QRIS</p>
-                            <div class="flex flex-wrap items-baseline gap-2">
-                                <span class="text-3xl font-black text-slate-900 tracking-tight">
+                        <!-- Card Bottom: Total Bayar & Status -->
+                        <div class="mt-5 pt-4 border-t border-slate-100 bg-slate-50/70 -mx-6 -mb-6 p-6 rounded-b-3xl">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Pembayaran</span>
+                                @if($invoice->payment_status === 'paid')
+                                    <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1">
+                                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                        LUNAS ({{ strtoupper($invoice->kipay_provider ?? 'QRIS') }})
+                                    </span>
+                                @elseif($invoice->kipay_expired_at && $invoice->kipay_expired_at->isPast())
+                                    <span class="px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200 flex items-center gap-1">
+                                        <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                                        KADALUARSA
+                                    </span>
+                                @else
+                                    <span class="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1">
+                                        <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+                                        MENUNGGU PEMBAYARAN
+                                    </span>
+                                @endif
+                            </div>
+
+                            <div class="flex items-baseline justify-between gap-2">
+                                <span class="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
                                     Rp {{ number_format($invoice->kipay_amount ?: $invoice->grand_total, 0, ',', '.') }}
                                 </span>
                                 @if($invoice->kipay_amount && $invoice->kipay_amount != $invoice->grand_total)
-                                    <span class="text-xs text-orange-700 font-bold bg-orange-100 border border-orange-200 px-2.5 py-0.5 rounded-full">
-                                        + kode unik Rp {{ number_format($invoice->kipay_amount - $invoice->grand_total, 0, ',', '.') }}
+                                    <span class="text-xs font-bold text-orange-700 bg-orange-100 border border-orange-200 px-2 py-0.5 rounded-full">
+                                        + kode unik
                                     </span>
                                 @endif
                             </div>
-                        </div>
 
-                        <!-- Meta Info Grid -->
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                                <span class="text-slate-400 block font-medium mb-0.5">KiPay Trx ID:</span>
-                                <div class="flex items-center justify-between font-mono font-bold text-slate-800">
-                                    <span class="truncate mr-2">{{ $invoice->kipay_trx_id ?? 'Belum terdaftar di KiPay' }}</span>
-                                    @if($invoice->kipay_trx_id)
-                                    <button type="button" @click="navigator.clipboard.writeText('{{ $invoice->kipay_trx_id }}'); copiedTrx = true; setTimeout(() => copiedTrx = false, 2000)" class="text-slate-400 hover:text-slate-700 shrink-0 transition-colors" title="Salin Trx ID">
-                                        <span x-show="!copiedTrx" class="text-xs">📋</span>
-                                        <span x-show="copiedTrx" class="text-emerald-600 font-sans font-bold text-[10px]">Tersalin!</span>
-                                    </button>
-                                    @endif
-                                </div>
-                            </div>
-
-                            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                                <span class="text-slate-400 block font-medium mb-0.5">Batas Waktu Scan:</span>
-                                @if($invoice->kipay_expired_at)
-                                    <span class="font-bold {{ $invoice->kipay_expired_at->isPast() ? 'text-rose-600' : 'text-slate-800' }}">
-                                        {{ $invoice->kipay_expired_at->format('d M Y, H:i') }} WIB
-                                        @if($invoice->kipay_expired_at->isPast() && $invoice->payment_status !== 'paid')
-                                            (Kadaluarsa)
-                                        @endif
-                                    </span>
-                                @else
-                                    <span class="font-bold text-slate-600">15 Menit sejak dibuat</span>
-                                @endif
-                            </div>
-                        </div>
-
-                        <!-- Direct WhatsApp Send Card / Button -->
-                        @if($waDirectUrl)
-                        <div class="pt-1">
-                            <a href="{{ $waDirectUrl }}" target="_blank" rel="noopener noreferrer" class="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl text-sm font-bold text-center transition-all flex items-center justify-center gap-2.5 shadow-md shadow-emerald-600/20">
-                                <svg class="w-5 h-5 fill-current shrink-0" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
-                                <span>Kirim Tagihan & QRIS via WhatsApp (Web / HP)</span>
-                            </a>
-                            <p class="text-[11px] text-slate-500 text-center mt-1">
-                                Kirim langsung dari WhatsApp Anda ke <strong>{{ $waCustomerPhone ?? ($invoice->serviceOrder->customer->phone ?? '-') }}</strong> tanpa perlu koneksi bot Fonnte.
-                            </p>
-                        </div>
-                        @endif
-
-                        <!-- Check Status, Simulate & Bayar Manual Actions -->
-                        @if($invoice->payment_status !== 'paid')
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 pt-1">
-                            @if($invoice->kipay_trx_id)
-                                <a href="{{ route('admin.invoice.check-kipay', $invoice->id) }}" class="py-2.5 px-3 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold text-center transition-colors flex items-center justify-center gap-1.5 shadow-sm">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                                    <span>Cek Status KiPay</span>
-                                </a>
-
-                                @if(($kiPayMode ?? 'sandbox') === 'sandbox')
-                                    <form action="{{ route('admin.invoice.simulate-kipay', $invoice->id) }}" method="POST" class="inline">
-                                        @csrf
-                                        <button type="submit" class="w-full py-2.5 px-3 bg-[#FF6B00] hover:bg-orange-600 text-white rounded-xl text-xs font-bold text-center transition-colors flex items-center justify-center gap-1.5 shadow-sm">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                                            <span>Simulasi Bayar</span>
-                                        </button>
-                                    </form>
-                                @endif
-
-                                <a href="{{ route('admin.invoice.edit', $invoice->id) }}" class="py-2.5 px-3 border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold text-center transition-colors flex items-center justify-center gap-1.5 shadow-sm">
-                                    <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                                    <span>Bayar Tunai</span>
-                                </a>
-                            @else
-                                <form action="{{ route('admin.invoice.send-qris', $invoice->id) }}" method="POST" class="inline">
-                                    @csrf
-                                    <button type="submit" class="w-full py-2.5 px-3 bg-[#FF6B00] hover:bg-orange-600 text-white rounded-xl text-xs font-bold text-center transition-colors flex items-center justify-center gap-1.5 shadow-sm">
-                                        <span>Buat Transaksi KiPay</span>
-                                    </button>
-                                </form>
-                                <a href="{{ route('admin.invoice.edit', $invoice->id) }}" class="py-2.5 px-3 border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold text-center transition-colors flex items-center justify-center gap-1.5 shadow-sm">
-                                    <span>Bayar Tunai</span>
-                                </a>
+                            @if($invoice->kipay_expired_at)
+                                <p class="text-xs text-slate-500 mt-2 text-left">
+                                    Batas Waktu Scan: <strong class="{{ $invoice->kipay_expired_at->isPast() ? 'text-rose-600 font-bold' : 'text-slate-800' }}">{{ $invoice->kipay_expired_at->format('d M Y, H:i') }} WIB</strong>
+                                </p>
                             @endif
                         </div>
+                    </div>
+                </div>
 
-                        <div class="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs">
-                            <form action="{{ route('admin.invoice.send-qris', $invoice->id) }}" method="POST" class="inline">
+                <!-- Action Controls Below Card -->
+                <div class="max-w-md mx-auto space-y-3">
+                    
+                    <!-- WhatsApp Direct Send Button -->
+                    @if($waDirectUrl)
+                    <a href="{{ $waDirectUrl }}" target="_blank" rel="noopener noreferrer" class="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-2xl text-sm font-bold text-center transition-all flex items-center justify-center gap-2.5 shadow-md shadow-emerald-600/25">
+                        <svg class="w-5 h-5 fill-current shrink-0" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+                        <span>Kirim Tagihan & QRIS via WhatsApp (Web / HP)</span>
+                    </a>
+                    <p class="text-[11px] text-slate-500 text-center">Buka WhatsApp ke nomor <strong>{{ $waCustomerPhone ?? ($invoice->serviceOrder->customer->phone ?? '-') }}</strong> tanpa perlu koneksi bot.</p>
+                    @endif
+
+                    <!-- Payment Action Grid (3 Buttons) -->
+                    @if($invoice->payment_status !== 'paid')
+                    <div class="grid grid-cols-3 gap-2">
+                        @if($invoice->kipay_trx_id)
+                            <a href="{{ route('admin.invoice.check-kipay', $invoice->id) }}" class="py-2.5 px-3 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold text-center transition-colors flex items-center justify-center gap-1 shadow-sm">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                <span>Cek Status</span>
+                            </a>
+
+                            @if(($kiPayMode ?? 'sandbox') === 'sandbox')
+                                <form action="{{ route('admin.invoice.simulate-kipay', $invoice->id) }}" method="POST" class="inline">
+                                    @csrf
+                                    <button type="submit" class="w-full py-2.5 px-3 bg-[#FF6B00] hover:bg-orange-600 text-white rounded-xl text-xs font-bold text-center transition-colors flex items-center justify-center gap-1 shadow-sm" title="Simulasi bayar berhasil (otomatis perbarui QRIS jika kadaluarsa)">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                        <span>Simulasi Bayar</span>
+                                    </button>
+                                </form>
+                            @endif
+
+                            <a href="{{ route('admin.invoice.edit', $invoice->id) }}" class="py-2.5 px-3 border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold text-center transition-colors flex items-center justify-center gap-1 shadow-sm">
+                                <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                                <span>Bayar Tunai</span>
+                            </a>
+                        @else
+                            <form action="{{ route('admin.invoice.send-qris', $invoice->id) }}" method="POST" class="inline col-span-2">
                                 @csrf
-                                <button type="submit" class="text-slate-500 hover:text-slate-800 underline flex items-center gap-1" title="Kirim ulang notifikasi menggunakan bot otomatis WhatsApp Fonnte">
-                                    <span>🤖 Kirim Ulang via Bot WA</span>
+                                <button type="submit" class="w-full py-2.5 px-3 bg-[#FF6B00] hover:bg-orange-600 text-white rounded-xl text-xs font-bold text-center transition-colors shadow-sm">
+                                    Buat Transaksi KiPay
                                 </button>
                             </form>
-
-                            <a href="{{ route('checkout.show', $invoice->invoice_number) }}" target="_blank" class="text-[#FF6B00] hover:underline font-medium flex items-center gap-1">
-                                <span>Halaman Checkout Publik ↗</span>
+                            <a href="{{ route('admin.invoice.edit', $invoice->id) }}" class="py-2.5 px-3 border border-slate-300 bg-white text-slate-700 rounded-xl text-xs font-bold text-center">
+                                Bayar Tunai
                             </a>
-                        </div>
                         @endif
-
-                        <!-- Bot Offline Warning Helper -->
-                        @if(isset($isFonnteConnected) && !$isFonnteConnected)
-                        <div class="mt-2 p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-800 flex items-start gap-2.5">
-                            <svg class="w-4 h-4 text-amber-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            <div>
-                                <strong>Status Bot WA:</strong> Bot otomatis Fonnte saat ini terputus (<em>disconnect</em>). Anda tetap dapat mengirimkan tagihan dengan mengklik tombol hijau <strong>Kirim Tagihan & QRIS via WhatsApp</strong> di atas, atau sambungkan kembali bot di <a href="{{ route('admin.whatsapp.index') }}" class="underline font-bold text-amber-900">Integrasi WhatsApp</a>.
-                            </div>
-                        </div>
-                        @endif
-
                     </div>
+                    @endif
+
+                    <!-- Utilities & Secondary Links -->
+                    <div class="flex flex-wrap items-center justify-center gap-3 pt-1 text-xs">
+                        <button type="button" @click="showQrModal = true" class="text-slate-600 hover:text-slate-900 font-medium flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+                            <span>Layar Penuh</span>
+                        </button>
+                        @if($invoice->kipay_trx_id)
+                        <a href="{{ route('admin.invoice.kipay-qr', $invoice->id) }}" download="qris-{{ $invoice->invoice_number }}.png" class="text-slate-600 hover:text-slate-900 font-medium flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            <span>Unduh PNG</span>
+                        </a>
+                        <a href="{{ route('admin.invoice.kipay-qr', $invoice->id) }}" target="_blank" class="text-slate-600 hover:text-slate-900 font-medium flex items-center gap-1">
+                            <span>PNG Asli (500x500) ↗</span>
+                        </a>
+                        @endif
+                        <a href="{{ route('checkout.show', $invoice->invoice_number) }}" target="_blank" class="text-[#FF6B00] hover:underline font-bold flex items-center gap-1">
+                            <span>Checkout Publik ↗</span>
+                        </a>
+                    </div>
+
+                    <!-- Expired State Re-create Action -->
+                    @if($invoice->kipay_expired_at && $invoice->kipay_expired_at->isPast() && $invoice->payment_status !== 'paid')
+                    <div class="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-800 flex items-center justify-between gap-3 shadow-sm">
+                        <div>
+                            <strong class="font-bold">QRIS Kadaluarsa:</strong> Batas waktu 15 menit telah habis.
+                        </div>
+                        <form action="{{ route('admin.invoice.send-qris', $invoice->id) }}" method="POST" class="shrink-0">
+                            @csrf
+                            <button type="submit" class="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-sm transition-all">
+                                🔄 Perbarui QRIS
+                            </button>
+                        </form>
+                    </div>
+                    @endif
                 </div>
             </div>
             @endif
