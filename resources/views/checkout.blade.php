@@ -44,6 +44,11 @@
                                 <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                                 LUNAS
                             </span>
+                        @elseif($invoice->kipay_expired_at && $invoice->kipay_expired_at->isPast())
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-full text-xs font-bold">
+                                <span class="w-2 h-2 rounded-full bg-rose-400"></span>
+                                KADALUARSA
+                            </span>
                         @else
                             <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full text-xs font-bold">
                                 <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
@@ -70,45 +75,75 @@
 
             <!-- UNPAID VIEW: QRIS DISPLAY -->
             <div id="unpaid_section" class="{{ $invoice->payment_status === 'paid' ? 'hidden' : 'block' }} p-6 text-center">
-                <p class="text-xs text-slate-500 mb-4">
-                    Pindai QRIS di bawah menggunakan aplikasi <strong>Mobile Banking</strong> (BCA, Mandiri, BRI, BNI) atau <strong>E-Wallet</strong> (GoPay, OVO, ShopeePay, DANA):
-                </p>
-
-                <!-- Protected QR Image Container using internal route -->
-                <div class="inline-block p-4 bg-white border-2 border-dashed border-orange-300 rounded-2xl shadow-sm mb-4 relative">
-                    @if($invoice->kipay_trx_id)
-                        <img
-                            src="{{ route('checkout.qr', $invoice->kipay_trx_id) }}"
-                            width="250"
-                            height="250"
-                            class="mx-auto rounded-lg"
-                            alt="QRIS untuk {{ $invoice->invoice_number }}"
-                        />
-                    @elseif(!empty($invoice->kipay_qr_payload))
-                        <img
-                            src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={{ urlencode($invoice->kipay_qr_payload) }}"
-                            width="250"
-                            height="250"
-                            class="mx-auto rounded-lg"
-                            alt="QRIS untuk {{ $invoice->invoice_number }}"
-                        />
-                    @else
-                        <div class="w-60 h-60 flex items-center justify-center text-xs text-slate-400">
-                            QRIS sedang dipersiapkan...
+                @if($invoice->kipay_expired_at && $invoice->kipay_expired_at->isPast())
+                    <!-- State: Expired -->
+                    <div class="p-6 bg-rose-50 border border-rose-200 rounded-2xl text-center mb-6">
+                        <div class="w-14 h-14 mx-auto rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mb-3">
+                            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                         </div>
-                    @endif
+                        <h4 class="font-bold text-rose-900 text-base mb-1">QRIS Telah Kadaluarsa</h4>
+                        <p class="text-xs text-rose-600">
+                            Batas waktu pembayaran telah berakhir pada <strong>{{ $invoice->kipay_expired_at->format('H:i') }} WIB</strong>.
+                            Sesuai aturan keamanan QRIS, silakan hubungi kasir/bengkel untuk membuat transaksi QRIS baru.
+                        </p>
+                    </div>
+                @else
+                    <p class="text-xs text-slate-500 mb-4">
+                        Pindai QRIS di bawah menggunakan aplikasi <strong>Mobile Banking</strong> (BCA, Mandiri, BRI, BNI) atau <strong>E-Wallet</strong> (GoPay, OVO, ShopeePay, DANA):
+                    </p>
 
-                    <div class="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-white px-3 py-0.5 rounded-full border border-slate-200 text-[10px] font-bold text-slate-600 shadow-sm flex items-center gap-1.5 whitespace-nowrap">
-                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
-                        Otomatis Terverifikasi
+                    <!-- Protected QR Image Container using internal route -->
+                    <div class="inline-block p-4 bg-white border-2 border-dashed border-orange-300 rounded-2xl shadow-sm mb-4 relative">
+                        @if($invoice->kipay_trx_id)
+                            <img
+                                src="{{ route('checkout.qr', $invoice->kipay_trx_id) }}"
+                                width="250"
+                                height="250"
+                                class="mx-auto rounded-lg"
+                                alt="QRIS untuk {{ $invoice->invoice_number }}"
+                            />
+                        @elseif(!empty($invoice->kipay_qr_payload))
+                            <img
+                                src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={{ urlencode($invoice->kipay_qr_payload) }}"
+                                width="250"
+                                height="250"
+                                class="mx-auto rounded-lg"
+                                alt="QRIS untuk {{ $invoice->invoice_number }}"
+                            />
+                        @else
+                            <div class="w-60 h-60 flex items-center justify-center text-xs text-slate-400">
+                                QRIS sedang dipersiapkan...
+                            </div>
+                        @endif
+
+                        <div class="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-white px-3 py-0.5 rounded-full border border-slate-200 text-[10px] font-bold text-slate-600 shadow-sm flex items-center gap-1.5 whitespace-nowrap">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                            Otomatis Terverifikasi
+                        </div>
+                    </div>
+
+                    @if($invoice->kipay_expired_at)
+                        <p class="text-xs text-slate-400 mt-2">
+                            Batas Waktu Pembayaran: <strong class="text-slate-700 font-semibold">{{ $invoice->kipay_expired_at->format('H:i') }} WIB</strong>
+                        </p>
+                    @endif
+                @endif
+
+                <!-- Button Manual Check & Polling Info -->
+                <div class="mt-6 flex flex-col items-center gap-3">
+                    <button type="button" onclick="checkPaymentStatusNow()" id="btn_manual_check" class="w-full py-2.5 px-4 bg-orange-50 hover:bg-orange-100 text-[#FF6B00] border border-orange-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                        <span id="btn_check_text">Saya Sudah Bayar (Cek Status)</span>
+                    </button>
+
+                    <div class="flex items-center justify-center gap-2 text-[11px] text-slate-400">
+                        <svg class="animate-spin h-3.5 w-3.5 text-orange-500" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                        </svg>
+                        <span>Menunggu sinyal pembayaran otomatis dari KiPay...</span>
                     </div>
                 </div>
-
-                @if($invoice->kipay_expired_at)
-                    <p class="text-xs text-slate-400 mt-2">
-                        Batas Waktu: <strong class="text-slate-700 font-semibold">{{ $invoice->kipay_expired_at->format('H:i') }} WIB</strong>
-                    </p>
-                @endif
 
                 <!-- Payment Steps Info -->
                 <div class="mt-6 pt-6 border-t border-slate-100 text-left">
@@ -120,15 +155,6 @@
                         <li>Periksa nominal <strong class="text-slate-800">Rp {{ number_format($invoice->kipay_amount ?: $invoice->grand_total, 0, ',', '.') }}</strong> dan selesaikan pembayaran.</li>
                         <li>Halaman ini akan otomatis berganti status setelah pembayaran sukses.</li>
                     </ol>
-                </div>
-
-                <!-- Polling indicator -->
-                <div class="mt-6 flex items-center justify-center gap-2 text-[11px] text-slate-400">
-                    <svg class="animate-spin h-3.5 w-3.5 text-orange-500" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-                    </svg>
-                    <span>Menunggu sinyal pembayaran dari KiPay...</span>
                 </div>
             </div>
 
@@ -195,34 +221,74 @@
     <script>
         const invoiceNumber = "{{ $invoice->invoice_number }}";
         let isPaid = {{ $invoice->payment_status === 'paid' ? 'true' : 'false' }};
+        let checkInterval = null;
+
+        function handlePaymentSuccess(data) {
+            if (checkInterval) clearInterval(checkInterval);
+            
+            // Switch UI smoothly
+            const unpaidSec = document.getElementById('unpaid_section');
+            const paidSec = document.getElementById('paid_section');
+            if (unpaidSec) unpaidSec.classList.add('hidden');
+            if (paidSec) paidSec.classList.remove('hidden');
+            
+            const badgeContainer = document.getElementById('status_badge_container');
+            if (badgeContainer) {
+                badgeContainer.innerHTML = `
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full text-xs font-bold">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        LUNAS
+                    </span>
+                `;
+            }
+
+            if (data.provider) {
+                const el = document.getElementById('paid_provider');
+                if (el) el.innerText = data.provider;
+            }
+            if (data.paid_at) {
+                const el = document.getElementById('paid_time');
+                if (el) el.innerText = data.paid_at + ' WIB';
+            }
+        }
+
+        function checkPaymentStatusNow() {
+            const btn = document.getElementById('btn_manual_check');
+            const textEl = document.getElementById('btn_check_text');
+            if (btn) btn.disabled = true;
+            if (textEl) textEl.innerText = 'Memeriksa status...';
+
+            fetch(`/checkout/${invoiceNumber}/status`, {
+                headers: { 'Accept': 'application/json' }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (btn) btn.disabled = false;
+                if (data.is_paid) {
+                    if (textEl) textEl.innerText = 'Pembayaran Lunas!';
+                    handlePaymentSuccess(data);
+                } else {
+                    if (textEl) textEl.innerText = 'Belum Ada Pembayaran (Cek Lagi)';
+                    setTimeout(() => {
+                        if (textEl) textEl.innerText = 'Saya Sudah Bayar (Cek Status)';
+                    }, 3000);
+                }
+            })
+            .catch(err => {
+                if (btn) btn.disabled = false;
+                if (textEl) textEl.innerText = 'Gagal memeriksa. Coba lagi.';
+            });
+        }
 
         if (!isPaid) {
-            const checkInterval = setInterval(() => {
+            checkInterval = setInterval(() => {
                 fetch(`/checkout/${invoiceNumber}/status`, {
                     headers: { 'Accept': 'application/json' }
                 })
                 .then(res => res.json())
                 .then(data => {
                     if (data.is_paid) {
-                        clearInterval(checkInterval);
-                        
-                        // Switch UI smoothly
-                        document.getElementById('unpaid_section').classList.add('hidden');
-                        document.getElementById('paid_section').classList.remove('hidden');
-                        
-                        document.getElementById('status_badge_container').innerHTML = `
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full text-xs font-bold">
-                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                                LUNAS
-                            </span>
-                        `;
-
-                        if (data.provider) {
-                            document.getElementById('paid_provider').innerText = data.provider;
-                        }
-                        if (data.paid_at) {
-                            document.getElementById('paid_time').innerText = data.paid_at + ' WIB';
-                        }
+                        handlePaymentSuccess(data);
                     }
                 })
                 .catch(err => console.log('Polling check:', err));
